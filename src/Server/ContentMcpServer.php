@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp\Server;
 
+use ElSchneider\ContentMcp\Tools\BlueprintTool;
+use ElSchneider\ContentMcp\Tools\SiteTool;
 use Laravel\Mcp\Server;
 
 final class ContentMcpServer extends Server
@@ -21,5 +23,8 @@ final class ContentMcpServer extends Server
         structures before creating or updating content.
     MARKDOWN;
 
-    protected array $tools = [];
+    protected array $tools = [
+        SiteTool::class,
+        BlueprintTool::class,
+    ];
 }

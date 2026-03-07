@@ -1,0 +1,6 @@
+title: Assets
+fields:
+  - handle: alt
+    field:
+      type: text
+      display: Alt Text

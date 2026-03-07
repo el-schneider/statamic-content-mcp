@@ -1,0 +1,28 @@
+title: Page
+fields:
+  - handle: title
+    field:
+      type: text
+      display: Title
+      validate:
+        - required
+  - handle: page_builder
+    field:
+      type: replicator
+      display: Page Builder
+      sets:
+        hero:
+          display: Hero
+          fields:
+            - handle: heading
+              field:
+                type: text
+                display: Heading
+                validate:
+                  - required
+            - handle: image
+              field:
+                type: assets
+                display: Image
+                container: assets
+                max_files: 1

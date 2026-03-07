@@ -1,0 +1,40 @@
+title: Post
+fields:
+  - handle: title
+    field:
+      type: text
+      display: Title
+      validate:
+        - required
+  - handle: content
+    field:
+      type: bard
+      display: Content
+      sets:
+        image:
+          display: Image
+          fields:
+            - handle: asset
+              field:
+                type: assets
+                display: Image
+                container: assets
+                max_files: 1
+                validate:
+                  - required
+            - handle: caption
+              field:
+                type: text
+                display: Caption
+  - handle: tags
+    field:
+      type: terms
+      display: Tags
+      taxonomies:
+        - tags
+      create: true
+  - handle: meta_title
+    field:
+      type: text
+      display: Meta Title
+      character_limit: 60
