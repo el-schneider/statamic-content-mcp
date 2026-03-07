@@ -8,6 +8,8 @@ use DOMDocument;
 use DOMElement;
 use DOMNode;
 use DOMText;
+use Statamic\Fieldtypes\Bard;
+use Statamic\Fieldtypes\Bard\Augmentor;
 
 final class BardToMarkdown
 {
@@ -31,26 +33,18 @@ final class BardToMarkdown
         }
 
         if (! $hasSets) {
-            return self::textNodesToMarkdown($value);
+            return self::nodesToMarkdown($value);
         }
 
         return self::convertWithSets($value);
     }
 
     /** @param array<int, array<string, mixed>> $nodes */
-    private static function textNodesToMarkdown(array $nodes): string
+    private static function nodesToMarkdown(array $nodes): string
     {
-        $parts = [];
-        foreach ($nodes as $node) {
-            if (($node['type'] ?? null) === 'text' && isset($node['text'])) {
-                $md = self::htmlToMarkdown($node['text']);
-                if ($md !== '') {
-                    $parts[] = $md;
-                }
-            }
-        }
+        $html = self::prosemirrorNodesToHtml($nodes);
 
-        return implode("\n\n", $parts);
+        return $html !== '' ? self::htmlToMarkdown($html) : '';
     }
 
     /**
@@ -65,7 +59,7 @@ final class BardToMarkdown
         foreach ($nodes as $node) {
             if (($node['type'] ?? null) === 'set') {
                 if ($textBuffer !== []) {
-                    $md = self::textNodesToMarkdown($textBuffer);
+                    $md = self::nodesToMarkdown($textBuffer);
                     if ($md !== '') {
                         $result[] = ['type' => 'text', 'text' => $md];
                     }
@@ -78,13 +72,58 @@ final class BardToMarkdown
         }
 
         if ($textBuffer !== []) {
-            $md = self::textNodesToMarkdown($textBuffer);
+            $md = self::nodesToMarkdown($textBuffer);
             if ($md !== '') {
                 $result[] = ['type' => 'text', 'text' => $md];
             }
         }
 
         return $result;
+    }
+
+    /**
+     * Convert ProseMirror nodes to HTML using Statamic's Bard Augmentor.
+     *
+     * Also handles legacy format where nodes are {type: "text", text: "<html>"}.
+     */
+    private static function prosemirrorNodesToHtml(array $nodes): string
+    {
+        // Handle legacy format: {type: "text", text: "<html>"}
+        if (self::isLegacyFormat($nodes)) {
+            return implode('', array_map(
+                fn ($node) => $node['text'] ?? '',
+                $nodes,
+            ));
+        }
+
+        $augmentor = new Augmentor(new Bard);
+
+        return $augmentor->renderProsemirrorToHtml([
+            'type' => 'doc',
+            'content' => $nodes,
+        ]);
+    }
+
+    /**
+     * Detect legacy Bard format where text nodes contain HTML strings.
+     *
+     * Legacy: [{type: "text", text: "<p>...</p>"}]
+     * Modern: [{type: "paragraph", content: [{type: "text", text: "..."}]}]
+     */
+    private static function isLegacyFormat(array $nodes): bool
+    {
+        foreach ($nodes as $node) {
+            $type = $node['type'] ?? null;
+            if ($type === 'text' && isset($node['text']) && is_string($node['text']) && str_contains($node['text'], '<')) {
+                return true;
+            }
+            // Modern ProseMirror nodes have types like paragraph, heading, bulletList, etc.
+            if (in_array($type, ['paragraph', 'heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock', 'horizontalRule'], true)) {
+                return false;
+            }
+        }
+
+        return false;
     }
 
     private static function htmlToMarkdown(string $html): string

@@ -245,9 +245,16 @@ it('creates an entry with bard markdown content', function () {
 
     $content = $entry->get('content');
     expect($content)->toBeArray()
-        ->and($content[0]['type'])->toBe('text')
-        ->and($content[0]['text'])->toContain('<h1>Hello</h1>')
-        ->and($content[0]['text'])->toContain('<strong>bold</strong>');
+        ->and($content[0]['type'])->toBe('heading')
+        ->and($content[0]['attrs']['level'])->toBe(1)
+        ->and($content[0]['content'][0]['text'])->toBe('Hello');
+
+    // Find a text node with bold mark
+    $boldNode = collect($content)
+        ->filter(fn ($n) => $n['type'] === 'paragraph')
+        ->flatMap(fn ($n) => $n['content'] ?? [])
+        ->first(fn ($n) => isset($n['marks']) && $n['marks'][0]['type'] === 'bold');
+    expect($boldNode['text'])->toBe('bold');
 });
 
 it('creates entries as drafts by default', function () {
@@ -358,7 +365,9 @@ it('updates bard content with markdown', function () {
 
     $entry = Entry::find('entry-published');
     $content = $entry->get('content');
-    expect($content[0]['text'])->toContain('<h1>Updated heading</h1>');
+    expect($content[0]['type'])->toBe('heading')
+        ->and($content[0]['attrs']['level'])->toBe(1)
+        ->and($content[0]['content'][0]['text'])->toBe('Updated heading');
 });
 
 it('updates slug when provided', function () {
@@ -526,10 +535,14 @@ it('creates an entry with bard blocks including sets', function () {
 
     $entry = Collection::findByHandle('blog')->queryEntries()->where('slug', 'bard-sets-post')->first();
     $content = $entry->get('content');
-    expect($content)->toHaveCount(3)
-        ->and($content[0]['type'])->toBe('text')
-        ->and($content[1]['type'])->toBe('set')
-        ->and($content[1]['attrs']['values']['type'])->toBe('image');
+    // ProseMirror nodes before the set, then set, then nodes after
+    $set = collect($content)->first(fn ($n) => $n['type'] === 'set');
+    expect($set)->not->toBeNull()
+        ->and($set['attrs']['values']['type'])->toBe('image');
+
+    // Should have paragraph nodes before and after the set
+    $paragraphs = collect($content)->filter(fn ($n) => $n['type'] === 'paragraph');
+    expect($paragraphs)->toHaveCount(2);
 });
 
 it('is registered when entries tool config is enabled', function () {

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace ElSchneider\ContentMcp\Support;
 
 use Illuminate\Support\Str;
+use Statamic\Fieldtypes\Bard;
+use Statamic\Fieldtypes\Bard\Augmentor;
 
 final class MarkdownToBard
 {
@@ -31,7 +33,7 @@ final class MarkdownToBard
     }
 
     /**
-     * Convert a plain markdown string to Bard storage format.
+     * Convert a plain markdown string to Bard ProseMirror nodes.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -41,9 +43,9 @@ final class MarkdownToBard
             return [];
         }
 
-        $html = self::markdownToHtml($markdown);
+        $html = \Statamic\Support\Str::markdown($markdown);
 
-        return [['type' => 'text', 'text' => $html]];
+        return self::htmlToProsemirrorNodes($html);
     }
 
     /**
@@ -60,9 +62,9 @@ final class MarkdownToBard
             $type = $block['type'] ?? null;
 
             if ($type === 'text') {
-                $html = self::markdownToHtml($block['text'] ?? '');
-                if ($html !== '') {
-                    $result[] = ['type' => 'text', 'text' => $html];
+                $html = \Statamic\Support\Str::markdown($block['text'] ?? '');
+                if (mb_trim($html) !== '') {
+                    $result = [...$result, ...self::htmlToProsemirrorNodes($html)];
                 }
             } else {
                 $values = $block;
@@ -82,12 +84,16 @@ final class MarkdownToBard
         return $result;
     }
 
-    private static function markdownToHtml(string $markdown): string
+    /**
+     * Convert HTML to ProseMirror nodes using Statamic's Bard Augmentor.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function htmlToProsemirrorNodes(string $html): array
     {
-        if (mb_trim($markdown) === '') {
-            return '';
-        }
+        $augmentor = new Augmentor(new Bard);
+        $doc = $augmentor->renderHtmlToProsemirror($html);
 
-        return \Statamic\Support\Str::markdown($markdown);
+        return $doc['content'] ?? [];
     }
 }

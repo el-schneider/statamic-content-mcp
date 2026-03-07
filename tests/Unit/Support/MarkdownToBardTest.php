@@ -16,27 +16,35 @@ it('returns null for empty array', function () {
     expect(MarkdownToBard::convert([]))->toBeNull();
 });
 
-it('converts simple markdown to bard text node', function () {
+it('converts simple markdown to prosemirror paragraph node', function () {
     $result = MarkdownToBard::convert('Hello world');
 
     expect($result)->toBeArray()
         ->and($result)->toHaveCount(1)
-        ->and($result[0]['type'])->toBe('text')
-        ->and($result[0]['text'])->toContain('<p>Hello world</p>');
+        ->and($result[0]['type'])->toBe('paragraph')
+        ->and($result[0]['content'][0]['type'])->toBe('text')
+        ->and($result[0]['content'][0]['text'])->toBe('Hello world');
 });
 
-it('converts markdown headings to html', function () {
+it('converts markdown headings to prosemirror heading nodes', function () {
     $result = MarkdownToBard::convert("# Title\n\nParagraph");
 
-    expect($result[0]['text'])->toContain('<h1>Title</h1>')
-        ->and($result[0]['text'])->toContain('<p>Paragraph</p>');
+    expect($result[0]['type'])->toBe('heading')
+        ->and($result[0]['attrs']['level'])->toBe(1)
+        ->and($result[0]['content'][0]['text'])->toBe('Title')
+        ->and($result[1]['type'])->toBe('paragraph')
+        ->and($result[1]['content'][0]['text'])->toBe('Paragraph');
 });
 
-it('converts markdown with bold and italic', function () {
+it('converts markdown with bold and italic to prosemirror marks', function () {
     $result = MarkdownToBard::convert('This is **bold** and *italic*');
 
-    expect($result[0]['text'])->toContain('<strong>bold</strong>')
-        ->and($result[0]['text'])->toContain('<em>italic</em>');
+    $content = $result[0]['content'];
+    $boldNode = collect($content)->first(fn ($n) => isset($n['marks']) && $n['marks'][0]['type'] === 'bold');
+    $italicNode = collect($content)->first(fn ($n) => isset($n['marks']) && $n['marks'][0]['type'] === 'italic');
+
+    expect($boldNode['text'])->toBe('bold')
+        ->and($italicNode['text'])->toBe('italic');
 });
 
 it('converts block array with text blocks', function () {
@@ -47,11 +55,15 @@ it('converts block array with text blocks', function () {
 
     $result = MarkdownToBard::convert($blocks);
 
-    expect($result)->toHaveCount(2)
-        ->and($result[0]['type'])->toBe('text')
-        ->and($result[0]['text'])->toContain('<h1>Hello</h1>')
-        ->and($result[1]['type'])->toBe('text')
-        ->and($result[1]['text'])->toContain('<p>World</p>');
+    // First block produces a heading node
+    $heading = collect($result)->first(fn ($n) => $n['type'] === 'heading');
+    expect($heading)->not->toBeNull()
+        ->and($heading['content'][0]['text'])->toBe('Hello');
+
+    // Second block produces a paragraph node
+    $paragraph = collect($result)->first(fn ($n) => $n['type'] === 'paragraph');
+    expect($paragraph)->not->toBeNull()
+        ->and($paragraph['content'][0]['text'])->toBe('World');
 });
 
 it('converts block array with sets', function () {
@@ -63,14 +75,16 @@ it('converts block array with sets', function () {
 
     $result = MarkdownToBard::convert($blocks);
 
-    expect($result)->toHaveCount(3)
-        ->and($result[0]['type'])->toBe('text')
-        ->and($result[0]['text'])->toContain('<p>Before</p>')
-        ->and($result[1]['type'])->toBe('set')
-        ->and($result[1]['attrs']['values']['type'])->toBe('image')
-        ->and($result[1]['attrs']['values']['caption'])->toBe('A photo')
-        ->and($result[1]['attrs'])->toHaveKey('id')
-        ->and($result[2]['type'])->toBe('text');
+    // Find the set node
+    $set = collect($result)->first(fn ($n) => $n['type'] === 'set');
+    expect($set)->not->toBeNull()
+        ->and($set['attrs']['values']['type'])->toBe('image')
+        ->and($set['attrs']['values']['caption'])->toBe('A photo')
+        ->and($set['attrs'])->toHaveKey('id');
+
+    // Find paragraph nodes before and after
+    $paragraphs = collect($result)->filter(fn ($n) => $n['type'] === 'paragraph')->values();
+    expect($paragraphs)->toHaveCount(2);
 });
 
 it('generates set ids when not provided', function () {
