@@ -4,6 +4,18 @@ declare(strict_types=1);
 
 use ElSchneider\ContentMcp\Server\ContentMcpServer;
 use ElSchneider\ContentMcp\Tools\BlueprintTool;
+use Statamic\Facades\AssetContainer;
+use Statamic\Facades\Collection;
+use Statamic\Facades\GlobalSet;
+use Statamic\Facades\Taxonomy;
+
+beforeEach(function () {
+    Collection::make('blog')->title('Blog')->dated(true)->save();
+    Collection::make('pages')->title('Pages')->save();
+    Taxonomy::make('tags')->title('Tags')->save();
+    GlobalSet::make('footer')->title('Footer')->save();
+    AssetContainer::make('assets')->title('Assets')->disk('local')->save();
+});
 
 it('describes a collection blueprint', function () {
     ContentMcpServer::tool(BlueprintTool::class, ['collection' => 'blog'])

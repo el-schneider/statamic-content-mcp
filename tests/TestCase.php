@@ -8,9 +8,12 @@ use ElSchneider\ContentMcp\ContentMcpServiceProvider;
 use Laravel\Mcp\Server\McpServiceProvider;
 use ReflectionClass;
 use Statamic\Testing\AddonTestCase;
+use Statamic\Testing\Concerns\PreventsSavingStacheItemsToDisk;
 
 abstract class TestCase extends AddonTestCase
 {
+    use PreventsSavingStacheItemsToDisk;
+
     protected string $addonServiceProvider = ContentMcpServiceProvider::class;
 
     protected function getPackageProviders($app): array
