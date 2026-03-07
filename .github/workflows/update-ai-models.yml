@@ -21,20 +21,20 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          claude -p \
-            --allowedTools "Read,Write,Edit,Bash,WebSearch" \
-            "Scan this entire codebase — including .github/workflows/ — for mentions
-            of specific AI model names or IDs (e.g. claude-sonnet-4-20250514, gpt-4o,
-            gemini-2.0-flash). Use web search to find the latest available models
-            from each provider (Anthropic, OpenAI, Google, etc.).
+          cat <<'PROMPT' | claude -p --allowedTools "Read,Write,Edit,Bash,WebSearch"
+          Scan this entire codebase — including .github/workflows/ — for mentions
+          of specific AI model names or IDs (e.g. claude-sonnet-4-20250514, gpt-4o,
+          gemini-2.0-flash). Use web search to find the latest available models
+          from each provider (Anthropic, OpenAI, Google, etc.).
 
-            Update any outdated model references to their current equivalents.
-            Preserve intent — if a small/fast model was used, pick the current
-            small/fast model, not the largest.
+          Update any outdated model references to their current equivalents.
+          Preserve intent — if a small/fast model was used, pick the current
+          small/fast model, not the largest.
 
-            If nothing is outdated, change nothing.
+          If nothing is outdated, change nothing.
 
-            Write a summary of changes (with old → new table) to /tmp/update-summary.md."
+          Write a summary of changes (with old → new table) to /tmp/update-summary.md.
+          PROMPT
 
       - name: Check for changes
         id: changes
