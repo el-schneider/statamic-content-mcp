@@ -69,6 +69,9 @@ return [
     | then resolves a real Statamic user (by id or email) so existing Statamic
     | permission checks still apply inside MCP tools.
     |
+    | Generate a token with:
+    | `php artisan content-mcp:generate-static-token --user=editor@example.com`
+    |
     | The legacy scalar form (`'auth' => 'sanctum'`) is still supported.
     |
     */

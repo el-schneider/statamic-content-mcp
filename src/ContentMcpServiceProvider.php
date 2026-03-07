@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp;
 
+use ElSchneider\ContentMcp\Console\Commands\GenerateStaticTokenCommand;
 use ElSchneider\ContentMcp\Support\AuthConfig;
 use ElSchneider\ContentMcp\Support\StaticTokenUserResolver;
 use Illuminate\Http\Request;
@@ -12,6 +13,10 @@ use Statamic\Providers\AddonServiceProvider;
 
 final class ContentMcpServiceProvider extends AddonServiceProvider
 {
+    protected $commands = [
+        GenerateStaticTokenCommand::class,
+    ];
+
     public function register(): void
     {
         parent::register();

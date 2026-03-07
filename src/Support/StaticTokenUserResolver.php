@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp\Support;
 
-use Illuminate\Contracts\Auth\Authenticatable;
+use Statamic\Contracts\Auth\User as StatamicUser;
 use Statamic\Facades\User;
 
 final class StaticTokenUserResolver
 {
-    public function resolve(?string $identifier): ?Authenticatable
+    public function resolve(?string $identifier): ?StatamicUser
     {
         if (! is_string($identifier) || $identifier === '') {
             return null;

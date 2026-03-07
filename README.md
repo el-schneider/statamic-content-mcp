@@ -81,6 +81,20 @@ Use Sanctum when your site uses Eloquent users and can issue personal access tok
 
 Use a shared bearer token plus a configured Statamic user when your site uses file-based users.
 
+Generate a strong token with a required Statamic user binding:
+
+```bash
+php artisan content-mcp:generate-static-token --user=agent@agent.md
+```
+
+Use `--raw` if you only want the token value for scripting:
+
+```bash
+php artisan content-mcp:generate-static-token --user=agent@agent.md --raw
+```
+
+Use `--length=` to control token length. Supported range: `32-128` characters.
+
 ```php
 'auth' => [
     'driver' => 'static_token',
