@@ -332,6 +332,206 @@ it('returns validation error for missing required field', function () {
         ->assertHasErrors();
 });
 
+// --- Update tests ---
+
+it('updates an entry with partial data', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'update',
+        'id' => 'entry-published',
+        'data' => ['title' => 'Updated Title'],
+    ])
+        ->assertOk()
+        ->assertSee('Updated Title');
+
+    $entry = Entry::find('entry-published');
+    expect($entry->get('title'))->toBe('Updated Title')
+        ->and($entry->get('tags'))->toBe(['tutorials']);
+});
+
+it('updates bard content with markdown', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'update',
+        'id' => 'entry-published',
+        'data' => ['content' => '# Updated heading'],
+    ])
+        ->assertOk();
+
+    $entry = Entry::find('entry-published');
+    $content = $entry->get('content');
+    expect($content[0]['text'])->toContain('<h1>Updated heading</h1>');
+});
+
+it('updates slug when provided', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'update',
+        'id' => 'entry-published',
+        'slug' => 'new-slug',
+        'data' => ['title' => 'Published Post'],
+    ])
+        ->assertOk()
+        ->assertSee('new-slug');
+});
+
+it('updates date for dated collections', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'update',
+        'id' => 'entry-published',
+        'date' => '2026-06-01',
+        'data' => ['title' => 'Published Post'],
+    ])
+        ->assertOk()
+        ->assertSee('2026-06-01');
+});
+
+it('returns error for nonexistent entry on update', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'update',
+        'id' => 'nonexistent',
+        'data' => ['title' => 'Nope'],
+    ])
+        ->assertHasErrors();
+});
+
+it('returns error for restricted collection on update', function () {
+    config(['statamic.content-mcp.collections' => ['pages']]);
+
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'update',
+        'id' => 'entry-published',
+        'data' => ['title' => 'Blocked'],
+    ])
+        ->assertHasErrors();
+});
+
+it('returns validation error on update', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'update',
+        'id' => 'entry-published',
+        'data' => ['title' => ''],
+    ])
+        ->assertHasErrors();
+});
+
+// --- Delete tests ---
+
+it('deletes an entry', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'delete',
+        'id' => 'entry-draft',
+    ])
+        ->assertOk()
+        ->assertSee('deleted')
+        ->assertSee('Draft Post');
+
+    expect(Entry::find('entry-draft'))->toBeNull();
+});
+
+it('returns error for nonexistent entry on delete', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'delete',
+        'id' => 'nonexistent',
+    ])
+        ->assertHasErrors();
+});
+
+it('returns error for restricted collection on delete', function () {
+    config(['statamic.content-mcp.collections' => ['pages']]);
+
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'delete',
+        'id' => 'entry-published',
+    ])
+        ->assertHasErrors();
+});
+
+// --- Publish/Unpublish tests ---
+
+it('publishes a draft entry', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'publish',
+        'id' => 'entry-draft',
+    ])
+        ->assertOk()
+        ->assertSee('published');
+
+    expect(Entry::find('entry-draft')->published())->toBeTrue();
+});
+
+it('unpublishes a published entry', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'unpublish',
+        'id' => 'entry-published',
+    ])
+        ->assertOk()
+        ->assertSee('draft');
+
+    expect(Entry::find('entry-published')->published())->toBeFalse();
+});
+
+it('sets date when publishing', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'publish',
+        'id' => 'entry-draft',
+        'date' => '2026-12-25',
+    ])
+        ->assertOk()
+        ->assertSee('2026-12-25');
+});
+
+it('returns scheduled status for future-dated published entry', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'publish',
+        'id' => 'entry-draft',
+        'date' => '2099-01-01',
+    ])
+        ->assertOk()
+        ->assertSee('scheduled');
+});
+
+it('returns error for nonexistent entry on publish', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'publish',
+        'id' => 'nonexistent',
+    ])
+        ->assertHasErrors();
+});
+
+it('returns error for restricted collection on publish', function () {
+    config(['statamic.content-mcp.collections' => ['pages']]);
+
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'publish',
+        'id' => 'entry-draft',
+    ])
+        ->assertHasErrors();
+});
+
+// --- Structured content tests (task 3.3) ---
+
+it('creates an entry with bard blocks including sets', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'data' => [
+            'title' => 'Bard Sets Post',
+            'content' => [
+                ['type' => 'text', 'text' => 'Before the image'],
+                ['type' => 'image', 'asset' => ['photo.jpg'], 'caption' => 'A photo'],
+                ['type' => 'text', 'text' => 'After the image'],
+            ],
+        ],
+    ])
+        ->assertOk()
+        ->assertSee('Bard Sets Post');
+
+    $entry = Collection::findByHandle('blog')->queryEntries()->where('slug', 'bard-sets-post')->first();
+    $content = $entry->get('content');
+    expect($content)->toHaveCount(3)
+        ->and($content[0]['type'])->toBe('text')
+        ->and($content[1]['type'])->toBe('set')
+        ->and($content[1]['attrs']['values']['type'])->toBe('image');
+});
+
 it('is registered when entries tool config is enabled', function () {
     config(['statamic.content-mcp.tools.entries' => true]);
 

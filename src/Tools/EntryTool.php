@@ -19,22 +19,22 @@ final class EntryTool extends Tool
 {
     protected string $name = 'entries';
 
-    protected string $description = 'List, get, and create entries. Supports filtering, sorting, pagination, and draft-first publishing.';
+    protected string $description = 'List, get, create, update, delete, publish, and unpublish entries. Supports filtering, sorting, pagination, and draft-first publishing.';
 
     public function schema(JsonSchema $schema): array
     {
         return [
             'action' => $schema->string()
-                ->enum(['list', 'get', 'create'])
+                ->enum(['list', 'get', 'create', 'update', 'delete', 'publish', 'unpublish'])
                 ->description('Action to perform.'),
             'collection' => $schema->string()
                 ->description('Collection handle (required for list and create).'),
             'id' => $schema->string()
-                ->description('Entry ID (for get).'),
+                ->description('Entry ID (for get, update, delete, publish, unpublish).'),
             'slug' => $schema->string()
                 ->description('Entry slug. For get: alternative to ID (requires collection). For create: sets the slug (auto-generated from title if omitted).'),
             'data' => $schema->object()
-                ->description('Field data for create. Use blueprints.describe to discover available fields.'),
+                ->description('Field data for create/update. Use blueprints.describe to discover available fields. Update merges with existing data.'),
             'blueprint' => $schema->string()
                 ->description('Blueprint handle for create (auto-detected if collection has only one).'),
             'published' => $schema->boolean()
@@ -61,13 +61,17 @@ final class EntryTool extends Tool
     public function handle(Request $request): Response
     {
         $request->validate([
-            'action' => ['required', 'string', 'in:list,get,create'],
+            'action' => ['required', 'string', 'in:list,get,create,update,delete,publish,unpublish'],
         ]);
 
         return match ($request->get('action')) {
             'list' => $this->list($request),
             'get' => $this->get($request),
             'create' => $this->create($request),
+            'update' => $this->update($request),
+            'delete' => $this->delete($request),
+            'publish' => $this->publish($request),
+            'unpublish' => $this->unpublish($request),
             default => Response::error('Unknown action.'),
         };
     }
@@ -236,5 +240,126 @@ final class EntryTool extends Tool
         $entry->save();
 
         return Response::json(EntryFormatter::forCreate($entry));
+    }
+
+    private function update(Request $request): Response
+    {
+        $request->validate([
+            'id' => ['required', 'string'],
+            'data' => ['required', 'array'],
+        ]);
+
+        $entry = $this->findEntryWithAccessCheck($request->get('id'));
+        if ($entry instanceof Response) {
+            return $entry;
+        }
+
+        $blueprint = $entry->blueprint();
+        $collection = $entry->collection();
+
+        $incoming = FieldValuePreparer::prepare($request->get('data'), $blueprint);
+        $merged = array_merge($entry->data()->all(), $incoming);
+
+        try {
+            $laravelValidator = $blueprint->fields()
+                ->addValues($merged)
+                ->validator()
+                ->validator();
+
+            if ($collection->dated()) {
+                $rules = collect($laravelValidator->getRules())->except('date')->all();
+                $laravelValidator->setRules($rules);
+            }
+
+            $laravelValidator->validate();
+        } catch (ValidationException $e) {
+            $details = collect($e->errors())
+                ->map(fn ($messages) => implode(', ', $messages))
+                ->implode('; ');
+
+            return Response::error("Validation failed: {$details}");
+        }
+
+        if ($request->get('slug')) {
+            $entry->slug($request->get('slug'));
+        }
+
+        if ($collection->dated() && $request->get('date')) {
+            $entry->date($request->get('date'));
+        }
+
+        $entry->data($merged);
+        $entry->save();
+
+        return Response::json(EntryFormatter::forGet($entry));
+    }
+
+    private function delete(Request $request): Response
+    {
+        $request->validate([
+            'id' => ['required', 'string'],
+        ]);
+
+        $entry = $this->findEntryWithAccessCheck($request->get('id'));
+        if ($entry instanceof Response) {
+            return $entry;
+        }
+
+        $id = $entry->id();
+        $title = $entry->get('title');
+        $entry->delete();
+
+        return Response::json([
+            'deleted' => true,
+            'id' => $id,
+            'title' => $title,
+        ]);
+    }
+
+    private function publish(Request $request): Response
+    {
+        return $this->setPublishState($request, true);
+    }
+
+    private function unpublish(Request $request): Response
+    {
+        return $this->setPublishState($request, false);
+    }
+
+    private function setPublishState(Request $request, bool $published): Response
+    {
+        $request->validate([
+            'id' => ['required', 'string'],
+        ]);
+
+        $entry = $this->findEntryWithAccessCheck($request->get('id'));
+        if ($entry instanceof Response) {
+            return $entry;
+        }
+
+        if ($request->get('date') && $entry->collection()->dated()) {
+            $entry->date($request->get('date'));
+        }
+
+        $entry->published($published);
+        $entry->save();
+
+        return Response::json(EntryFormatter::forGet($entry));
+    }
+
+    /** @return \Statamic\Contracts\Entries\Entry|Response */
+    private function findEntryWithAccessCheck(string $id): mixed
+    {
+        $entry = Entry::find($id);
+        if (! $entry) {
+            return Response::error('Entry not found.');
+        }
+
+        $allowed = config('statamic.content-mcp.collections');
+        if ($allowed !== null && ! in_array($entry->collectionHandle(), $allowed, strict: true)) {
+            return Response::error("Collection [{$entry->collectionHandle()}] is not accessible.");
+        }
+
+        return $entry;
     }
 }
