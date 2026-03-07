@@ -8,13 +8,6 @@ use Statamic\Providers\AddonServiceProvider;
 
 final class ContentMcpServiceProvider extends AddonServiceProvider
 {
-    protected $vite = [
-        'input' => [
-            'resources/js/addon.ts',
-        ],
-        'publicDirectory' => 'resources/dist',
-    ];
-
     public function register(): void
     {
         parent::register();
@@ -27,6 +20,7 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
         parent::boot();
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'content-mcp');
+        $this->loadRoutesFrom(__DIR__.'/../routes/mcp.php');
 
         $this->publishes([
             __DIR__.'/../config/statamic/content-mcp.php' => config_path('statamic/content-mcp.php'),
