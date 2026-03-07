@@ -1,0 +1,29 @@
+name: Bug Report
+description: Report a bug
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+
+  - type: input
+    id: statamic-version
+    attributes:
+      label: Statamic Version
+      placeholder: e.g. 6.0.0
+
+  - type: input
+    id: php-version
+    attributes:
+      label: PHP Version
+      placeholder: e.g. 8.4
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce the issue?
