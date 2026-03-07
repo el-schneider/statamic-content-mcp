@@ -1,31 +1,38 @@
 # AGENTS.md
 
+This file adds **addon-local** guidance only.
+
+- Workflow, review cadence, retry rules, verification policy, and task tracking live in the repository root `AGENTS.md`.
+- If process guidance here conflicts with the root file, follow the **root `AGENTS.md`**.
+
 ## Project Structure
 
 This is a Statamic addon. Key paths:
 
-- `src/` — PHP source (ServiceProvider, Commands, etc.)
-- `config/statamic/` — Publishable config
+- `src/` — PHP source (service provider, tools, support classes)
+- `config/` — publishable addon config
 - `resources/views/` — Blade views
-- `resources/js/` — Frontend assets (if applicable)
-- `resources/dist/` — Built assets (committed)
+- `resources/js/` — frontend assets, if added later
+- `resources/dist/` — built assets, if frontend is added and committed
 - `routes/` — CP and action routes
 - `tests/` — Pest test suites
 
-## Development
+## Canonical Commands
+
+Run these from `addons/statamic-content-mcp/`:
 
 ```bash
-composer test          # Run tests
-composer pint          # Fix code style
-composer ci            # Pint check + tests
-npm run check          # Prettier + ESLint + Pint (if frontend)
-npm run fix            # Auto-fix all
-npm run build          # Vite build (if frontend)
+composer ci
+composer test
+composer pint
 ```
+
+Use direct binaries only when a task needs exact flags not covered by the Composer scripts.
 
 ## Conventions
 
-- All PHP classes use `declare(strict_types=1)` and `final`
-- Pint with strict Laravel preset (see pint.json)
-- Pest for testing
-- Frontend (when present): Vite + TypeScript + ESLint + Prettier
+- All PHP classes use `declare(strict_types=1)`.
+- Prefer `final` classes unless the framework requires extension.
+- Pest is the default test framework.
+- Match surrounding Laravel/Statamic style and keep changes minimal.
+- Frontend tooling only matters if frontend assets are introduced. Do not invent a frontend build pipeline preemptively.

@@ -19,17 +19,17 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
     {
         parent::register();
 
-        $this->mergeConfigFrom(__DIR__ . '/../config/statamic/content-mcp.php', 'statamic.content-mcp');
+        $this->mergeConfigFrom(__DIR__.'/../config/statamic/content-mcp.php', 'statamic.content-mcp');
     }
 
     public function boot(): void
     {
         parent::boot();
 
-        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'content-mcp');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'content-mcp');
 
         $this->publishes([
-            __DIR__ . '/../config/statamic/content-mcp.php' => config_path('statamic/content-mcp.php'),
+            __DIR__.'/../config/statamic/content-mcp.php' => config_path('statamic/content-mcp.php'),
         ], 'statamic-content-mcp-config');
     }
 

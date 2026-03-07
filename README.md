@@ -1,6 +1,7 @@
 # statamic-content-mcp
 
 <!--delete-->
+
 ## Getting Started
 
 1. Press "Use this template" or clone this repo
@@ -40,21 +41,21 @@ php configure.php \
 
 **All flags:**
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--name` | folder name | Package name. Auto-prefixes `statamic-` if missing. |
-| `--description` | "A Statamic addon" | Package description |
-| `--class` | derived from name | PHP class name prefix (e.g. `MagicActions`) |
-| `--author` | `git config user.name` | Author name |
-| `--email` | `git config user.email` | Author email |
-| `--username` | from `gh` CLI | GitHub username |
-| `--vendor` | `soft-lifes` | Vendor slug for Packagist |
-| `--namespace` | derived from vendor | PHP namespace prefix |
-| `--statamic` | `v6` | `v5`, `v6`, or `both` |
-| `--frontend` / `--no-frontend` | no | Include Vite + TS + ESLint + Prettier + Husky |
-| `--install` / `--no-install` | yes (interactive) / no (non-interactive) | Run composer/npm install |
-| `--keep-script` | no | Don't delete configure.php after running |
-| `--help` | | Show help |
+| Flag                           | Default                                  | Description                                         |
+| ------------------------------ | ---------------------------------------- | --------------------------------------------------- |
+| `--name`                       | folder name                              | Package name. Auto-prefixes `statamic-` if missing. |
+| `--description`                | "A Statamic addon"                       | Package description                                 |
+| `--class`                      | derived from name                        | PHP class name prefix (e.g. `MagicActions`)         |
+| `--author`                     | `git config user.name`                   | Author name                                         |
+| `--email`                      | `git config user.email`                  | Author email                                        |
+| `--username`                   | from `gh` CLI                            | GitHub username                                     |
+| `--vendor`                     | `soft-lifes`                             | Vendor slug for Packagist                           |
+| `--namespace`                  | derived from vendor                      | PHP namespace prefix                                |
+| `--statamic`                   | `v6`                                     | `v5`, `v6`, or `both`                               |
+| `--frontend` / `--no-frontend` | no                                       | Include Vite + TS + ESLint + Prettier + Husky       |
+| `--install` / `--no-install`   | yes (interactive) / no (non-interactive) | Run composer/npm install                            |
+| `--keep-script`                | no                                       | Don't delete configure.php after running            |
+| `--help`                       |                                          | Show help                                           |
 
 <!--/delete-->
 

@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Tests;
 
-use Orchestra\Testbench\TestCase as BaseTestCase;
-use Statamic\Testing\AddonTestCase;
 use ElSchneider\ContentMcp\ContentMcpServiceProvider;
+use Statamic\Testing\AddonTestCase;
 
 abstract class TestCase extends AddonTestCase
 {
