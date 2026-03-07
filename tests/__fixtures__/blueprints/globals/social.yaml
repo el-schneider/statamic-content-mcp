@@ -1,0 +1,13 @@
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: twitter_url
+            field:
+              type: text
+              display: 'Twitter URL'
+              validate: required
+          - handle: facebook_url
+            field:
+              type: text
+              display: 'Facebook URL'
