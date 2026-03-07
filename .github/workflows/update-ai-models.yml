@@ -17,22 +17,34 @@ jobs:
       - name: Install Claude CLI
         run: npm install -g @anthropic-ai/claude-code
 
+      - name: Fetch latest models
+        run: |
+          curl -s https://openrouter.ai/api/v1/models | jq '
+            [.data[] | {id, created}]
+            | group_by(.id | split("/")[0])
+            | map({
+                provider: .[0].id | split("/")[0],
+                models: [.[] | .id | split("/")[1]] | sort | reverse
+              })
+            | .[] | select(.provider | test("anthropic|openai|google|meta|mistralai|x-ai"))
+          ' > /tmp/latest-models.json
+
       - name: Run agent
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          cat <<'PROMPT' | claude -p --model haiku --allowedTools "Read,Write,Edit,Bash,WebSearch"
+          cat <<'PROMPT' | claude -p --model haiku --allowedTools "Read,Write,Edit,Bash"
+          Read /tmp/latest-models.json — it contains the latest available models
+          per provider (Anthropic, OpenAI, Google, Meta, Mistral, xAI).
+
           Scan this entire codebase — including .github/workflows/ — for ALL
           mentions of specific AI model names or IDs (e.g. claude-sonnet-4-20250514,
           gpt-4o, gemini-2.0-flash). This includes illustrative examples, prompts,
           comments, and documentation — not just functional references.
 
-          Use web search to find the latest available models from each provider
-          (Anthropic, OpenAI, Google, etc.).
-
-          Update any outdated model references to their current equivalents.
-          Preserve intent — if a small/fast model was used, pick the current
-          small/fast model, not the largest.
+          Compare found references against the latest models data.
+          Update any outdated ones to their current equivalents. Preserve intent — if a
+          small/fast model was used, pick the current small/fast model, not the largest.
 
           If nothing is outdated, change nothing.
 
