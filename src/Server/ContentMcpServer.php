@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp\Server;
 
+use ElSchneider\ContentMcp\Tools\AssetTool;
 use ElSchneider\ContentMcp\Tools\BlueprintTool;
 use ElSchneider\ContentMcp\Tools\EntryTool;
+use ElSchneider\ContentMcp\Tools\GlobalsTool;
+use ElSchneider\ContentMcp\Tools\SearchTool;
 use ElSchneider\ContentMcp\Tools\SiteTool;
+use ElSchneider\ContentMcp\Tools\TaxonomyTool;
 use Laravel\Mcp\Server;
 
 final class ContentMcpServer extends Server
@@ -28,5 +32,9 @@ final class ContentMcpServer extends Server
         SiteTool::class,
         BlueprintTool::class,
         EntryTool::class,
+        GlobalsTool::class,
+        TaxonomyTool::class,
+        AssetTool::class,
+        SearchTool::class,
     ];
 }
