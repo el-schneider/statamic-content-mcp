@@ -117,6 +117,68 @@ If you previously published an older config that used the legacy scalar form (`'
 
 The request authenticates with the bearer token, then the addon resolves the configured Statamic user and runs MCP tools under that user's normal Statamic permissions.
 
+### Example remote MCP client config (`static_token`)
+
+For Claude Desktop or any other client that supports remote MCP over HTTP, use a server entry like this:
+
+```json
+{
+  "mcpServers": {
+    "statamic-content": {
+      "url": "https://example.com/mcp/content",
+      "headers": {
+        "Authorization": "Bearer <your-static-token>"
+      }
+    }
+  }
+}
+```
+
+### Example remote MCP client config (`sanctum`)
+
+```json
+{
+  "mcpServers": {
+    "statamic-content": {
+      "url": "https://example.com/mcp/content",
+      "headers": {
+        "Authorization": "Bearer <your-sanctum-token>"
+      }
+    }
+  }
+}
+```
+
+### Quick HTTP verification
+
+Before wiring a desktop client, verify the endpoint directly:
+
+```bash
+curl -X POST "https://example.com/mcp/content" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer <your-token>" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2024-11-05",
+      "capabilities": {},
+      "clientInfo": {
+        "name": "curl",
+        "version": "1.0.0"
+      }
+    }
+  }'
+```
+
+A successful response includes:
+
+- `"jsonrpc": "2.0"`
+- `"result.serverInfo.name": "statamic-content"`
+- `"result.serverInfo.version": "1.0.0"`
+
 ## Configuration
 
 The published config file at `config/statamic/content-mcp.php` is fully documented with inline comments explaining each option. Key settings:
