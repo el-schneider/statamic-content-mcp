@@ -66,7 +66,42 @@ If you use Laravel Sail:
 
 ### HTTP (Claude Desktop, ChatGPT Desktop, etc.)
 
-The addon registers an HTTP transport at `/mcp/content` protected by Sanctum. Generate a token for your user, then point your client at your site's MCP endpoint.
+The addon registers an HTTP transport at `/mcp/content`.
+
+Two auth modes are supported:
+
+- **`sanctum`** — recommended when your site stores users in the database
+- **`static_token`** — recommended fallback for file-based Statamic users
+
+#### Sanctum
+
+Use Sanctum when your site uses Eloquent users and can issue personal access tokens.
+
+#### Static token
+
+Use a shared bearer token plus a configured Statamic user when your site uses file-based users.
+
+```php
+'auth' => [
+    'driver' => 'static_token',
+    'static_token' => [
+        'token' => env('STATAMIC_CONTENT_MCP_STATIC_TOKEN'),
+        'user' => env('STATAMIC_CONTENT_MCP_STATIC_TOKEN_USER'),
+    ],
+],
+```
+
+Example `.env` values:
+
+```env
+STATAMIC_CONTENT_MCP_AUTH_DRIVER=static_token
+STATAMIC_CONTENT_MCP_STATIC_TOKEN=replace-with-a-long-random-token
+STATAMIC_CONTENT_MCP_STATIC_TOKEN_USER=agent@agent.md
+```
+
+If you previously published an older config that used the legacy scalar form (`'auth' => 'sanctum'`), update it to the new array form before switching drivers.
+
+The request authenticates with the bearer token, then the addon resolves the configured Statamic user and runs MCP tools under that user's normal Statamic permissions.
 
 ## Configuration
 
@@ -75,7 +110,7 @@ The published config file at `config/statamic/content-mcp.php` is fully document
 - **`tools`** — Enable or disable individual tools
 - **`collections`** — Restrict which collections are exposed (`null` = all, or an array like `['pages', 'blog']`)
 - **`default_published`** — Whether entries are published on create (`false` = draft-first, recommended)
-- **`auth`** — Auth guard for the HTTP transport
+- **`auth`** — HTTP auth driver config (`sanctum` or `static_token`)
 - **`pagination`** — Default and maximum page sizes for list endpoints
 
 ## Tools

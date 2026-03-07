@@ -61,15 +61,26 @@ return [
     | HTTP Transport Auth
     |--------------------------------------------------------------------------
     |
-    | The authentication guard used for the HTTP (SSE) transport endpoint at
-    | /mcp/content. The stdio transport does not use this setting — it runs
-    | as a local process with full access.
+    | Authentication for the HTTP MCP endpoint. Use `sanctum` when your site
+    | stores users in the database. Use `static_token` as a fallback for the
+    | common file-based Statamic user setup.
     |
-    | Supported: 'sanctum'
+    | `static_token` authenticates the request with a shared bearer token and
+    | then resolves a real Statamic user (by id or email) so existing Statamic
+    | permission checks still apply inside MCP tools.
+    |
+    | The legacy scalar form (`'auth' => 'sanctum'`) is still supported.
     |
     */
 
-    'auth' => 'sanctum',
+    'auth' => [
+        'driver' => env('STATAMIC_CONTENT_MCP_AUTH_DRIVER', 'sanctum'),
+
+        'static_token' => [
+            'token' => env('STATAMIC_CONTENT_MCP_STATIC_TOKEN'),
+            'user' => env('STATAMIC_CONTENT_MCP_STATIC_TOKEN_USER'),
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------
