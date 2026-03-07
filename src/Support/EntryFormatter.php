@@ -33,6 +33,27 @@ final class EntryFormatter
     }
 
     /** @return array<string, mixed> */
+    public static function forCreate(Entry $entry): array
+    {
+        $result = [
+            'id' => $entry->id(),
+            'collection' => $entry->collectionHandle(),
+            'blueprint' => $entry->blueprint()->handle(),
+            'slug' => $entry->slug(),
+            'status' => self::status($entry),
+            'url' => $entry->url(),
+            'edit_url' => '/cp/collections/'.$entry->collectionHandle().'/entries/'.$entry->id(),
+            'title' => $entry->get('title'),
+        ];
+
+        if ($entry->collection()->dated()) {
+            $result['date'] = $entry->date()?->toDateString();
+        }
+
+        return $result;
+    }
+
+    /** @return array<string, mixed> */
     public static function forGet(Entry $entry): array
     {
         $blueprint = $entry->blueprint();

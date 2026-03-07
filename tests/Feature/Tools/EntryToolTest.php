@@ -213,6 +213,125 @@ it('requires action parameter', function () {
         ->assertHasErrors();
 });
 
+// --- Create tests ---
+
+it('creates an entry with scalar fields', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'data' => [
+            'title' => 'New Blog Post',
+            'meta_title' => 'New Blog Post SEO',
+        ],
+    ])
+        ->assertOk()
+        ->assertSee('New Blog Post');
+});
+
+it('creates an entry with bard markdown content', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'data' => [
+            'title' => 'Markdown Post',
+            'content' => "# Hello\n\nThis is **bold** text.",
+        ],
+    ])
+        ->assertOk()
+        ->assertSee('Markdown Post');
+
+    $entry = Collection::findByHandle('blog')->queryEntries()->where('slug', 'markdown-post')->first();
+    expect($entry)->not->toBeNull();
+
+    $content = $entry->get('content');
+    expect($content)->toBeArray()
+        ->and($content[0]['type'])->toBe('text')
+        ->and($content[0]['text'])->toContain('<h1>Hello</h1>')
+        ->and($content[0]['text'])->toContain('<strong>bold</strong>');
+});
+
+it('creates entries as drafts by default', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'data' => ['title' => 'Draft Entry'],
+    ])
+        ->assertOk()
+        ->assertSee('draft');
+});
+
+it('creates published entries when requested', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'published' => true,
+        'data' => ['title' => 'Published Entry'],
+    ])
+        ->assertOk()
+        ->assertSee('published');
+});
+
+it('generates slug from title on create', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'data' => ['title' => 'My Great Blog Post'],
+    ])
+        ->assertOk()
+        ->assertSee('my-great-blog-post');
+});
+
+it('uses explicit slug on create', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'slug' => 'custom-slug',
+        'data' => ['title' => 'Custom Slug Post'],
+    ])
+        ->assertOk()
+        ->assertSee('custom-slug');
+});
+
+it('sets date for dated collections on create', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'date' => '2026-04-15',
+        'data' => ['title' => 'Dated Post'],
+    ])
+        ->assertOk()
+        ->assertSee('2026-04-15');
+});
+
+it('returns error for restricted collection on create', function () {
+    config(['statamic.content-mcp.collections' => ['pages']]);
+
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'data' => ['title' => 'Blocked'],
+    ])
+        ->assertHasErrors();
+});
+
+it('returns error for unknown collection on create', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'nonexistent',
+        'data' => ['title' => 'Blocked'],
+    ])
+        ->assertHasErrors();
+});
+
+it('returns validation error for missing required field', function () {
+    ContentMcpServer::tool(EntryTool::class, [
+        'action' => 'create',
+        'collection' => 'blog',
+        'data' => ['meta_title' => 'No title provided'],
+    ])
+        ->assertHasErrors();
+});
+
 it('is registered when entries tool config is enabled', function () {
     config(['statamic.content-mcp.tools.entries' => true]);
 
