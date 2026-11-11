@@ -45,7 +45,7 @@ final class Trees
         $kept = self::byId($branches);
 
         foreach ($stored as $id => $branch) {
-            if (! isset($kept[$id]) && self::hiddenEntry($branch)) {
+            if (! isset($kept[$id]) && self::hiddenEntry($branch, $tree)) {
                 throw ValidationException::withMessages(['tree' => ["Node [{$id}] links to an entry you may not view. Keep it in the tree."]]);
             }
         }
@@ -140,7 +140,7 @@ final class Trees
      */
     private static function presentNode(Fields $fields, NavTree $tree, array $branch): array
     {
-        if (self::hiddenEntry($branch)) {
+        if (self::hiddenEntry($branch, $tree)) {
             return ['id' => $branch['id'] ?? null, 'restricted' => true];
         }
 
@@ -178,7 +178,7 @@ final class Trees
             }
 
             $children = self::branches($fields, $tree, is_array($node['children'] ?? null) ? $node['children'] : [], $stored, $path.'children.');
-            $branch = $id !== null && self::hiddenEntry($stored[$id])
+            $branch = $id !== null && self::hiddenEntry($stored[$id], $tree)
                 ? $stored[$id]
                 : self::branch($fields, $tree, $node, $id === null ? null : $stored[$id], $path);
 
@@ -209,7 +209,7 @@ final class Trees
             $entry = is_string($entryId) ? Entries::find($entryId) : null;
             $allowed = $tree->structure()->collections()->map->handle()->all();
 
-            if (! $entry instanceof Entry || Gate::denies('view', $entry)) {
+            if (! $entry instanceof Entry || ! self::viewable($entry, $tree)) {
                 throw ValidationException::withMessages([$path.'entry' => ['Entry ['.(is_scalar($entryId) ? $entryId : '').'] not found.']]);
             }
 
@@ -282,11 +282,22 @@ final class Trees
     /**
      * @param  array<array-key, mixed>  $branch
      */
-    private static function hiddenEntry(array $branch): bool
+    private static function hiddenEntry(array $branch, NavTree $tree): bool
     {
         $entry = is_string($branch['entry'] ?? null) ? Entries::find($branch['entry']) : null;
 
-        return $entry instanceof Entry && Gate::denies('view', $entry);
+        return $entry instanceof Entry && ! self::viewable($entry, $tree);
+    }
+
+    /**
+     * The CP authorizes the referenced entry; the node shows its localization in the
+     * tree's site, so both must be viewable.
+     */
+    private static function viewable(Entry $entry, NavTree $tree): bool
+    {
+        $shown = $entry->in($tree->locale()) ?? $entry;
+
+        return Gate::allows('view', $entry) && Gate::allows('view', $shown);
     }
 
     /**

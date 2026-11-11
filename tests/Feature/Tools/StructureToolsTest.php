@@ -164,6 +164,31 @@ it('keeps nodes that link entries the editor may not view', function () {
         ->and(storedNav())->toBe([['id' => 'n2', 'url' => '/a'], ['id' => 'n1', 'entry' => $secret->id(), 'title' => 'Hidden']]);
 });
 
+it('authorizes the localization a navigation node shows, not only the entry it references', function () {
+    // Regression: the node showed the German localization's title and URL after checking the English entry only.
+    config(['statamic.system.multisite' => true]);
+    Statamic\Facades\Site::setSites([
+        'default' => ['name' => 'English', 'url' => 'http://localhost/', 'locale' => 'en_US'],
+        'de' => ['name' => 'Deutsch', 'url' => 'http://localhost/de/', 'locale' => 'de_DE'],
+    ]);
+    Collection::findByHandle('pages')->sites(['default', 'de'])->save();
+    Gate::policy(Entry::class, HideSecretEntriesPolicy::class);
+    $editor = editor(['access content mcp', 'access default site', 'access de site', 'view main nav', 'edit main nav', 'view pages entries'], 'both@example.com');
+    $english = entry('pages', ['title' => 'Concert'], slug: 'concert');
+    $german = $english->makeLocalization('de')->slug('secret')->data(['title' => 'Geheimkonzert']);
+    $german->save();
+    $nav = Nav::make('main')->title('Main')->collections(['pages']);
+    $nav->save();
+    $nav->makeTree('de', [['id' => 'n1', 'entry' => $english->id()]])->save();
+
+    $tree = tool($editor, GetNavigation::class, ['handle' => 'main', 'site' => 'de'])->assertHasNoErrors()->data()['tree'];
+    $errors = structureErrors(tool($editor, UpdateNavigation::class, ['handle' => 'main', 'site' => 'de', 'tree' => [['id' => 'n1', 'restricted' => true], ['entry' => $english->id()]]]));
+
+    expect($tree)->toBe([['id' => 'n1', 'restricted' => true, 'children' => []]])
+        ->and(json_encode($tree))->not->toContain('Geheim')
+        ->and($errors['tree.1.entry'][0])->toBe("Entry [{$english->id()}] not found.");
+});
+
 it('needs the edit permission and reports a cancelled save, and returns the tree as saved', function () {
     mainNav([['id' => 'n1', 'url' => '/a']]);
 
