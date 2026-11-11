@@ -10,8 +10,9 @@ use Statamic\Entries\Entry;
 use Statamic\Facades\Collection as Collections;
 use Statamic\Facades\Entry as Entries;
 use Statamic\Facades\GlobalSet as GlobalSets;
-use Statamic\Facades\Site;
+use Statamic\Facades\Site as Sites;
 use Statamic\Globals\Variables;
+use Statamic\Sites\Site;
 
 /**
  * Lookups by id or handle that only return what the current user may view.
@@ -41,14 +42,29 @@ final class Find
     }
 
     /**
-     * Global variables are viewable exactly when they are editable.
-     *
-     * shortcut: globals, find_entries, find_assets, list_terms and create_entry use the default site only
-     * (by-id entry tools use the entry's own site); add a `site` argument when multi-site editing is needed.
+     * The given site, or the default site when none is given.
      */
-    public static function globals(string $handle): Variables
+    public static function site(?string $handle): Site
     {
-        $variables = GlobalSets::findByHandle($handle)?->in(Site::default()->handle());
+        if ($handle === null) {
+            return Sites::default();
+        }
+
+        $site = Sites::get($handle);
+
+        if (! $site instanceof Site || Gate::denies('view', $site)) {
+            throw new NotFound("Site [{$handle}] not found.");
+        }
+
+        return $site;
+    }
+
+    /**
+     * Global variables are viewable exactly when they are editable.
+     */
+    public static function globals(string $handle, Site $site): Variables
+    {
+        $variables = GlobalSets::findByHandle($handle)?->in($site->handle());
 
         if (! $variables instanceof Variables || Gate::denies('edit', $variables)) {
             throw new NotFound("Global set [{$handle}] not found.");

@@ -19,7 +19,6 @@ use Statamic\Entries\Collection as EntryCollection;
 use Statamic\Entries\Entry;
 use Statamic\Facades\Collection as Collections;
 use Statamic\Facades\Entry as Entries;
-use Statamic\Facades\Site;
 
 #[Title('Find entries')]
 #[Description('Lists or searches entries and returns short summaries (id, title, status, url…). `has_more` tells whether another page follows; there is no total count. Without `query` it lists one collection: dated collections newest first, others by title. With `query` it matches title, slug and content text, case-insensitively, across every collection you may view unless `collection` is given, and returns a `snippet` around the first content match. Use get_entry with an id to read an entry\'s content.')]
@@ -32,6 +31,7 @@ final class FindEntries extends ContentTool
     {
         return [
             'collection' => $schema->string()->description('Collection handle, from get_overview.'),
+            'site' => self::siteArgument($schema),
             'query' => $schema->string()->description('Text to search for.'),
             'status' => $schema->string()->enum(['published', 'draft', 'scheduled', 'expired'])->description('Only entries with this status.'),
             'limit' => $schema->integer()->min(1)->max(100)->default(20),
@@ -43,6 +43,7 @@ final class FindEntries extends ContentTool
     {
         $request->validate([
             'collection' => ['nullable', 'string'],
+            'site' => ['nullable', 'string'],
             'query' => ['nullable', 'string'],
             'status' => ['nullable', 'in:published,draft,scheduled,expired'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
@@ -56,7 +57,7 @@ final class FindEntries extends ContentTool
         $query = Entries::query()
             // @phpstan-ignore method.notFound (Statamic's entry query contract is an empty interface; both drivers' builders have whereIn)
             ->whereIn('collection', $collections->map->handle()->values()->all())
-            ->where('site', Site::default()->handle())
+            ->where('site', $this->site($request)->handle())
             ->when($request->filled('status'), fn ($query) => $query->whereStatus($request->string('status')->toString()));
 
         $collections->count() === 1 && $collections->first()->dated()

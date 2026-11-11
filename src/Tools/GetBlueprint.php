@@ -40,7 +40,7 @@ final class GetBlueprint extends ContentTool
         ]);
 
         if ($request->filled('global')) {
-            $blueprint = Find::globals($request->string('global')->toString())->blueprint();
+            $blueprint = Find::globals($request->string('global')->toString(), Find::site(null))->blueprint();
         } else {
             $collection = Find::collection($request->string('collection')->toString());
             $handle = $request->filled('blueprint') ? $request->string('blueprint')->toString() : null;

@@ -1,0 +1,12 @@
+title: Contact
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: hours
+            field:
+              type: text
+              localizable: true
+          - handle: phone
+            field:
+              type: text

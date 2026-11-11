@@ -18,7 +18,6 @@ use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Statamic\Contracts\Entries\Entry as EntryContract;
-use Statamic\Facades\Site;
 
 #[Title('Create draft entry')]
 #[Description('Creates a new entry as an unpublished draft. `data` maps field handles from get_blueprint to values in the shape described there. Returns the entry with `edit_url` and `preview_url`; show the preview link to the editor. Validation errors come back per field so you can correct them and retry.')]
@@ -32,6 +31,7 @@ final class CreateEntry extends ContentTool
     {
         return [
             'collection' => $schema->string()->description('Collection handle, from get_overview.')->required(),
+            'site' => self::siteArgument($schema),
             'blueprint' => $schema->string()->description('Blueprint handle. Defaults to the collection\'s default blueprint.'),
             'data' => $schema->object()->description('Field values keyed by field handle, e.g. {"title": "…", "content": "<p>…</p>"}.')->required(),
             'slug' => $schema->string()->description('URL slug. Generated from the title when omitted.'),
@@ -44,6 +44,7 @@ final class CreateEntry extends ContentTool
     {
         $request->validate([
             'collection' => ['required', 'string'],
+            'site' => ['nullable', 'string'],
             'blueprint' => ['nullable', 'string'],
             'data' => ['required', 'array'],
             'slug' => ['nullable', 'string'],
@@ -52,7 +53,7 @@ final class CreateEntry extends ContentTool
         ]);
 
         $collection = Find::collection($request->string('collection')->toString());
-        $site = Site::default();
+        $site = $this->site($request);
 
         if (Gate::denies('create', [EntryContract::class, $collection, $site])) {
             return Response::error("You may not create entries in [{$collection->handle()}].");

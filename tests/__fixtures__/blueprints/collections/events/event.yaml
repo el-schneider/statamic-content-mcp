@@ -1,0 +1,22 @@
+title: Event
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              localizable: true
+              validate:
+                - required
+          - handle: slug
+            field:
+              type: slug
+              localizable: true
+          - handle: summary
+            field:
+              type: text
+              localizable: true
+          - handle: venue
+            field:
+              type: text

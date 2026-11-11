@@ -13,7 +13,6 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
-use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy;
 use Statamic\Taxonomies\LocalizedTerm;
 use Statamic\Taxonomies\Taxonomy as TaxonomyModel;
@@ -29,6 +28,7 @@ final class ListTerms extends ContentTool
     {
         return [
             'taxonomy' => $schema->string()->description('Taxonomy handle, from get_overview.')->required(),
+            'site' => self::siteArgument($schema),
             'query' => $schema->string()->description('Text to match in the title or slug.'),
             'limit' => $schema->integer()->min(1)->max(500)->default(100),
             'offset' => $schema->integer()->min(0)->default(0),
@@ -39,6 +39,7 @@ final class ListTerms extends ContentTool
     {
         $request->validate([
             'taxonomy' => ['required', 'string'],
+            'site' => ['nullable', 'string'],
             'query' => ['nullable', 'string'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
             'offset' => ['nullable', 'integer', 'min:0'],
@@ -51,7 +52,7 @@ final class ListTerms extends ContentTool
             throw new NotFound("Taxonomy [{$handle}] not found.");
         }
 
-        $query = $taxonomy->queryTerms()->where('site', Site::default()->handle())->orderBy('title');
+        $query = $taxonomy->queryTerms()->where('site', $this->site($request)->handle())->orderBy('title');
 
         if ($request->filled('query')) {
             $like = '%'.addcslashes($request->string('query')->toString(), '%_\\').'%';

@@ -13,6 +13,7 @@ use ElSchneider\ContentMcp\Tools\GetEntry;
 use ElSchneider\ContentMcp\Tools\GetGlobal;
 use ElSchneider\ContentMcp\Tools\GetOverview;
 use ElSchneider\ContentMcp\Tools\ListTerms;
+use ElSchneider\ContentMcp\Tools\LocalizeEntry;
 use ElSchneider\ContentMcp\Tools\PublishEntry;
 use ElSchneider\ContentMcp\Tools\UnpublishEntry;
 use ElSchneider\ContentMcp\Tools\UpdateEntry;
@@ -46,6 +47,7 @@ final class ContentMcpServer extends Server
         PublishEntry::class,
         UnpublishEntry::class,
         UpdateGlobal::class,
+        LocalizeEntry::class,
     ];
 
     protected function boot(): void

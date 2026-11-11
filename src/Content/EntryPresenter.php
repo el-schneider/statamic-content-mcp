@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp\Content;
 
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Statamic\CP\LivePreview;
 use Statamic\Entries\Entry;
+use Statamic\Facades\Site;
 use Statamic\Facades\URL;
 
 final class EntryPresenter
@@ -19,6 +21,7 @@ final class EntryPresenter
         return [
             'id' => $entry->id(),
             'collection' => $entry->collectionHandle(),
+            ...(Site::multiEnabled() ? ['site' => $entry->locale()] : []),
             'title' => $entry->value('title'),
             'slug' => $entry->slug(),
             'status' => $entry->status(),
@@ -36,6 +39,11 @@ final class EntryPresenter
         return [
             'id' => $entry->id(),
             'collection' => $entry->collectionHandle(),
+            ...(Site::multiEnabled() ? [
+                'site' => $entry->locale(),
+                'origin' => $entry->origin()?->id(),
+                'localizations' => self::localizations($entry),
+            ] : []),
             'blueprint' => $entry->blueprint()->handle(),
             'slug' => $entry->slug(),
             'date' => $entry->hasDate() ? $entry->date()->toIso8601String() : null,
@@ -46,6 +54,28 @@ final class EntryPresenter
             'edit_url' => $entry->editUrl(),
             'preview_url' => $withPreview ? self::previewUrl($entry) : null,
         ];
+    }
+
+    /**
+     * The ids of the entry in every site where it exists and the user may view it, by site handle.
+     *
+     * @return array<string, string>
+     */
+    private static function localizations(Entry $entry): array
+    {
+        $root = $entry->root();
+        $all = $root->descendants()->put($root->locale(), $root);
+        $localizations = [];
+
+        foreach (Site::all()->keys() as $site) {
+            $localization = $all->get($site);
+
+            if ($localization instanceof Entry && Gate::allows('view', $localization)) {
+                $localizations[$site] = $localization->id();
+            }
+        }
+
+        return $localizations;
     }
 
     /**

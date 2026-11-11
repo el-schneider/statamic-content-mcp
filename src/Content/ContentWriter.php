@@ -127,7 +127,7 @@ final class ContentWriter
         self::assertKnown($fields, $handles, entry: true);
 
         // The values the CP edit form starts from.
-        $current = [...Arr::removeNullValues($entry->data()->all()), 'slug' => $entry->slug()];
+        $current = [...self::values($entry), 'slug' => $entry->slug()];
 
         if ($collection->dated()) {
             $current['date'] = mb_substr($entry->date()->setTimezone(config('app.timezone'))->toDateTimeString(), 0, 19);
@@ -135,6 +135,7 @@ final class ContentWriter
 
         $patched = self::patch($fields, $current, $changes, $handles);
         $merged = [...$current, ...AgentForm::toStored($fields, $patched, $current)];
+        self::assertLocalizable($entry, $fields, Arr::only($merged, $handles), $current);
         self::assertReadOnlyUnchanged($fields, Arr::only($merged, $handles), $current, self::lockedHandles($collection, $blueprint));
         $preProcessed = self::preProcess($fields, $merged);
 
@@ -178,9 +179,10 @@ final class ContentWriter
         $handles = DataPatch::handles($changes);
         self::assertKnown($fields, $handles, entry: false);
 
-        $current = Arr::removeNullValues($variables->data()->all());
+        $current = self::values($variables);
         $patched = self::patch($fields, $current, $changes, $handles);
         $merged = [...$current, ...AgentForm::toStored($fields, $patched, $current)];
+        self::assertLocalizable($variables, $fields, Arr::only($merged, $handles), $current);
         self::assertReadOnlyUnchanged($fields, Arr::only($merged, $handles), $current, []);
         $preProcessed = self::preProcess($fields, $merged);
         self::validate($fields, $merged, $patched, fn () => $preProcessed->validate());
@@ -188,6 +190,59 @@ final class ContentWriter
         NotSaved::unless($variables->merge(self::written($fields, $preProcessed, $merged, $current, $handles)->all())->save() !== false);
 
         return $variables;
+    }
+
+    /**
+     * The stored field values an entry or global set resolves to: a localization's
+     * own values over those of its origins. Like the CP's edit form, without the
+     * values a collection injects.
+     *
+     * @return array<array-key, mixed>
+     */
+    public static function values(Entry|Variables $item): array
+    {
+        $values = [];
+
+        for ($target = $item; $target !== null; $target = $target->origin()) {
+            $data = $target->data()->all();
+            // A localization's null overrides its origin's value; a root's null is just empty.
+            $values = [...($target->isRoot() ? Arr::removeNullValues($data) : $data), ...$values];
+        }
+
+        return Arr::removeNullValues($values);
+    }
+
+    /**
+     * A localization owns only its localizable fields; the others belong to the
+     * origin, as in the CP, where they are read-only in a localization.
+     *
+     * @param  array<array-key, mixed>  $new
+     * @param  array<array-key, mixed>  $old
+     */
+    private static function assertLocalizable(Entry|Variables $item, Fields $fields, array $new, array $old): void
+    {
+        $origin = $item->origin();
+
+        if ($origin === null) {
+            return;
+        }
+
+        $errors = [];
+
+        foreach ($new as $handle => $value) {
+            $field = $fields->get($handle);
+
+            // Every localization has its own slug.
+            if ($handle !== 'slug' && $field !== null && ! $field->isLocalizable() && $value !== ($old[$handle] ?? null)) {
+                $errors[$handle] = [$origin instanceof Entry
+                    ? "Not localizable. Change it on the origin entry [{$origin->id()}]."
+                    : "Not localizable. Change it in the origin site [{$origin->locale()}]."];
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**
