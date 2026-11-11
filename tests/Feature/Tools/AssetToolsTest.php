@@ -225,7 +225,9 @@ it('applies the allowed file types and the container validation rules', function
     $php = uploadErrors(tool($this->editor, UploadAsset::class, ['container' => 'assets', 'url' => 'https://example.com/shell.php']));
     $png = uploadErrors(tool($this->editor, UploadAsset::class, ['container' => 'assets', 'url' => 'https://example.com/photo.png']));
 
-    expect($php)->toHaveKey('filename')
+    // Regression: Statamic's own message is only "Upload failed", which tells the model nothing.
+    expect($php['filename'][0])->toContain('Files of type [php] cannot be uploaded')
+        ->and($php['filename'][0])->toContain('mimes:jpg')
         ->and($png['filename'][0])->toContain('jpg')
         ->and(Storage::disk('assets')->allFiles())->toBe([]);
 });

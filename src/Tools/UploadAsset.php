@@ -98,8 +98,21 @@ final class UploadAsset extends ContentTool
     private static function store(AssetContainer $container, string $folder, UploadedFile $file, array $data): \Statamic\Assets\Asset
     {
         $rules = array_map(fn (mixed $rule): mixed => app(FieldValidator::class)->parse($rule), $container->validationRules());
-        // Keyed by filename: its extension decides the allowed type.
-        Validator::make(['filename' => $file], ['filename' => ['file', new AllowedFile, ...$rules]])->validate();
+
+        // Keyed by filename: its extension decides the allowed type. AllowedFile's own message
+        // is only "Upload failed"; its list of extensions is private, so it is described here.
+        if (Validator::make(['filename' => $file], ['filename' => [new AllowedFile]])->fails()) {
+            $extension = strtolower($file->getClientOriginalExtension());
+            $required = $container->validationRules() === [] ? '' : " The container [{$container->handle()}] also requires: ".implode(', ', array_filter($container->validationRules(), is_string(...))).'.';
+
+            throw ValidationException::withMessages(['filename' => [
+                ($extension === '' ? 'Files without an extension cannot be uploaded.' : "Files of type [{$extension}] cannot be uploaded to this site.")
+                .' Allowed are common image, document, audio, video and archive formats, such as jpg, png, webp, svg, pdf, docx, xlsx, mp3, mp4 and zip.'
+                .$required,
+            ]]);
+        }
+
+        Validator::make(['filename' => $file], ['filename' => ['file', ...$rules]])->validate();
 
         $path = ltrim($folder.'/'.AssetUploader::getSafeFilename($file->getClientOriginalName()), '/');
 
