@@ -232,6 +232,27 @@ final class ContentWriter
     }
 
     /**
+     * The stored-form data of one navigation node: $agent replaces the node's data,
+     * parts equal to what is stored stay byte-identical.
+     *
+     * @param  array<array-key, mixed>  $agent
+     * @param  array<array-key, mixed>  $current
+     * @return array<array-key, mixed>
+     */
+    public static function branchData(Fields $fields, array $agent, array $current): array
+    {
+        $handles = array_keys($agent);
+        self::assertKnown($fields, $handles, []);
+
+        $merged = AgentForm::toStored($fields, $agent, $current);
+        self::assertReadOnlyUnchanged($fields, $merged, $current, []);
+        $preProcessed = self::preProcess($fields, $merged);
+        self::validate($fields, $merged, $agent, fn () => $preProcessed->validate());
+
+        return Arr::removeNullValues(self::written($fields, $preProcessed, $merged, $current, $handles)->all());
+    }
+
+    /**
      * Validated stored-form blueprint data for an asset that is about to be uploaded,
      * so a failure stops the upload before any file is written.
      *

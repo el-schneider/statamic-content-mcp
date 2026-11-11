@@ -1,0 +1,17 @@
+title: Main
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: icon
+            field:
+              type: text
+          - handle: priority
+            field:
+              type: integer
+              validate:
+                - max:10
+          - handle: tracking
+            field:
+              type: text
+              visibility: read_only

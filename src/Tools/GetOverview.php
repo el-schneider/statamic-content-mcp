@@ -17,14 +17,16 @@ use Statamic\Entries\Collection;
 use Statamic\Facades\AssetContainer;
 use Statamic\Facades\Collection as Collections;
 use Statamic\Facades\GlobalSet;
+use Statamic\Facades\Nav;
 use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy;
 use Statamic\Fields\Blueprint;
 use Statamic\Globals\GlobalSet as GlobalSetModel;
 use Statamic\Sites\Site as SiteModel;
+use Statamic\Structures\Nav as NavModel;
 
 #[Title('Get site overview')]
-#[Description('Start here. Returns the site (on multi-site installs: the sites you may work in, and where each collection and global set exists), the editor you act for, the collections, taxonomies, global sets and asset containers this editor may access, and the site\'s editorial guidelines. Follow the guidelines in everything you write.')]
+#[Description('Start here. Returns the site (on multi-site installs: the sites you may work in, and where each collection and global set exists), the editor you act for, the collections, taxonomies, global sets, navigations and asset containers this editor may access, and the site\'s editorial guidelines. Follow the guidelines in everything you write.')]
 #[IsReadOnly]
 final class GetOverview extends ContentTool
 {
@@ -72,6 +74,14 @@ final class GetOverview extends ContentTool
                 ])
                 ->filter(fn (array $set): bool => $set['sites'] !== [])
                 ->map(fn (array $set): array => $multi ? $set : array_diff_key($set, ['sites' => true]))
+                ->values()->all(),
+            'navigations' => Nav::all()
+                ->filter(fn (NavModel $nav): bool => Gate::allows('view', $nav))
+                ->map(fn (NavModel $nav): array => [
+                    'handle' => $nav->handle(),
+                    'title' => $nav->title(),
+                    ...($multi ? ['sites' => $accessible($nav->sites())] : []),
+                ])
                 ->values()->all(),
             'asset_containers' => AssetContainer::all()
                 ->filter(fn ($container): bool => Gate::allows('view', $container))

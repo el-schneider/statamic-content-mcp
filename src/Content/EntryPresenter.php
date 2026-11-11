@@ -46,6 +46,7 @@ final class EntryPresenter
             ] : []),
             'blueprint' => $entry->blueprint()->handle(),
             'slug' => $entry->slug(),
+            ...($entry->collection()->hasStructure() ? ['parent' => $entry->parent()?->id()] : []),
             'date' => $entry->hasDate() ? $entry->date()->toIso8601String() : null,
             'published' => $entry->published(),
             'status' => $entry->status(),

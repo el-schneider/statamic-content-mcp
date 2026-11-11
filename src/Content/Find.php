@@ -22,6 +22,7 @@ use Statamic\Globals\GlobalSet;
 use Statamic\Globals\Variables;
 use Statamic\Sites\Site;
 use Statamic\Structures\Nav;
+use Statamic\Structures\NavTree;
 use Statamic\Taxonomies\LocalizedTerm;
 use Statamic\Taxonomies\Taxonomy;
 
@@ -61,6 +62,21 @@ final class Find
         }
 
         return $nav;
+    }
+
+    /**
+     * A navigation's tree in a site; an empty, unsaved one where it has none yet.
+     */
+    public static function navigationTree(string $handle, Site $site): NavTree
+    {
+        $nav = self::navigation($handle);
+        $tree = $nav->in($site->handle()) ?? $nav->makeTree($site->handle());
+
+        if (! $tree instanceof NavTree || Gate::denies('view', $tree)) {
+            throw new NotFound("Navigation [{$handle}] not found.");
+        }
+
+        return $tree;
     }
 
     public static function asset(string $id): Asset
