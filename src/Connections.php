@@ -17,6 +17,10 @@ use Statamic\Facades\User;
  * Connections of AI apps, derived from Passport's tables: one per (user, OAuth client)
  * pair that has an access token that is not revoked or a refresh token still usable.
  * Passport records when tokens are issued, not when they are used.
+ *
+ * TODO: offer to purge OAuth clients that never got a token. Dynamic registration creates
+ * one per attempt, Passport 13's clients carry no scope that marks them as ours, and
+ * passport:purge leaves clients alone.
  */
 final class Connections
 {

@@ -3,9 +3,11 @@
 ## Commands
 
 ```bash
-composer check   # pint --test, phpstan (level 8), pest
-composer fix     # pint
-composer test    # pest
+composer ci:check   # everything CI checks: npm run check, npm run types:check, then composer check
+composer check      # PHP gate: lint:check (pint --test), types:check (phpstan level 8), test (pest)
+composer lint       # pint
+npm run check:fix   # oxfmt + oxlint through Vite+
+npm run build       # rebuild resources/dist; commit it (see below)
 uv run scripts/oauth-e2e.py https://site.example [email password]   # walks the OAuth + MCP flow against a running site, as a Claude connector does
 ```
 
@@ -41,6 +43,13 @@ uv run scripts/oauth-e2e.py https://site.example [email password]   # walks the 
 - An empty PHP array serialises as `[]`; maps in responses go through `AgentForm::object()`.
 - Pest reports warnings that `@` suppresses.
 - A killed test run (e.g. output piped into `head`) can make the next run fail at random. `TestCase::setUp()` clears the fake Stache directory and RouteCacheTest's route cache, but not everything; rerun before you chase such a failure.
+- The committed build in `resources/dist` embeds the export list of `@statamic/cms` (it is a symlink to `vendor/statamic/cms/resources/dist-package`), which changes between Statamic versions; rolldown keeps every destructured name. Build with the lowest dependencies, as CI does: `composer update --prefer-lowest && npm run build`, then `composer update`.
+- Owner settings: read through `Settings`, which takes the saved value from `raw()` (Statamic's parsed values run Antlers and turn toggles into strings). The settings blueprint is a closure so its labels follow the CP locale and its defaults the config file; null in the saved file means "use the config file", which is also what the form shows.
+- `mcp.redirect_domains` is applied per request by `ApplyAllowedApps` on the OAuth routes, not at boot, because the effective value can come from the settings file.
+- Settings saved in tests land in the Testbench skeleton's `resources/addons`; `TestCase::setUp()` deletes the file.
+- In tests, a second `connectClaude()` must reset Passport's authorize route controller (it keeps the guard, with the first user), and every `mcp()` call restores the default guard that `AuthenticateBearerToken` switches. Separate PHP requests in production start fresh.
+- `Nav::build()` is mocked by AddonTestCase after the addon extended the real nav; test the nav by extending a fresh `Statamic\CP\Navigation\Nav` with `ContentMcpServiceProvider::navigation()`.
+- Statamic answers an authorization failure on a CP page load with a redirect and an error toast, a JSON request with 403. Tests use `getJson()` to see the 403.
 - Statamic's entry query contract is an empty interface; `whereIn()` on `Entry::query()` needs a phpstan ignore.
 - Pest 5 needs PHP 8.4; `require-dev` allows Pest 4 so CI can test PHP 8.3.
 - Larastan does not resolve real-time facades (`Facades\…`); use `app(Class::class)`.

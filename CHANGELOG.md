@@ -6,6 +6,19 @@ All notable changes to `statamic-content-mcp` will be documented in this file.
 
 ### Added
 
+- Tools → Content MCP in the Control Panel. **Connect** shows editors the server URL with a copy button, the steps, what the assistant may do, and their own connections with Disconnect. **Connections** lists every user's connections (app, address, user, first connected, last token issued, state) for users with the new permission **See and disconnect every user's AI app connections**, including those of deleted users, and disconnects any of them. **Settings** edits the settings below.
+- Settings in the Control Panel, stored as Statamic addon settings: editorial guidelines, allowed apps and allow deleting. The config file holds the defaults; a saved value wins.
+- A frontend build (Vite+, TypeScript, Statamic's Vue components), committed in `resources/dist`.
+
+### Changed
+
+- The addon describes itself without naming one client: it works with any MCP client that supports OAuth with dynamic client registration, and is tested with Claude. The permission is labelled **Use AI assistants through Content MCP**; its handle `access content mcp` stays. Only Claude may register by default, as before.
+- Composer scripts follow Laravel's starter kits: `lint`, `lint:check`, `types:check`, `test`, `check` (the PHP gate) and `ci:check` (frontend and PHP). `composer fix` is `composer lint`.
+
+## v0.2.0
+
+### Added
+
 - Multi-site: `get_overview` lists the sites the editor may access and where collections, globals and navigations exist. `find_entries`, `create_entry`, `get_global`, `update_global` and the term and navigation tools take a `site`. `get_entry` returns `site`, `origin`, `localizations` and the fields a localization sets itself; writes to a localization stay in it, and non-localizable fields belong to the origin.
 - `localize_entry`, on multi-site installs.
 - `get_asset` with a scaled-down image for the model to look at, `update_asset`, and `upload_asset`, which downloads from a public URL with SSRF protection and Statamic's own upload rules. Config `uploads.max_size`.
