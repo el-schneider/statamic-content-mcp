@@ -1,271 +1,124 @@
-# Statamic Content MCP
+# Content MCP for Statamic
 
-An MCP server for Statamic that lets AI assistants discover, read, create, update, and publish content. Works with Claude Code, Cursor, Windsurf, Claude Desktop, and any other MCP-compatible client.
+Content MCP lets the editors of a Statamic site work on content with Claude. An editor adds the site to Claude as a custom connector, signs in with their Control Panel account and approves the connection. From then on Claude can read the site's content and draft new entries, with exactly the rights that editor has in Statamic.
 
-## Features
-
-- **Site Discovery:** Overview of collections, taxonomies, globals, asset containers, and navigations
-- **Blueprint Inspection:** Describe field structures for any collection, taxonomy, global, or asset container
-- **Entry Management:** Full CRUD with draft-first publishing, scheduling, filtering, sorting, and pagination
-- **Globals:** Read and update site-wide settings
-- **Taxonomies:** List, create, update, and delete taxonomy terms
-- **Assets:** Browse containers and inspect asset metadata (read-only)
-- **Search:** Find entries by title across collections with status filtering
-- **Collection Restrictions:** Limit which collections are exposed to AI clients
-- **Bard Support:** Accepts markdown for Bard fields, returns markdown on read
+It is built for editors, not developers. There are no blueprint, user or system tools, no Control Panel pages, and no local (stdio) transport.
 
 ## Requirements
 
 - PHP 8.3+
-- Statamic 6
-- Laravel 12+
+- Statamic 6.31+ on Laravel 12 or 13
+- A database for Passport's OAuth tables (SQLite is fine). Statamic users can stay in files.
+- A public HTTPS URL, because Claude connects from Anthropic's servers
 
 ## Installation
 
 ```bash
 composer require el-schneider/statamic-content-mcp
+php artisan migrate
+php artisan passport:keys
 ```
 
-Publish the configuration file:
+`migrate` creates Laravel Passport's tables and makes their `user_id` columns strings, since Statamic user ids are UUIDs.
+
+`passport:keys` writes the OAuth signing keys to `storage/oauth-private.key` and `storage/oauth-public.key`. Do this once per environment and keep the keys out of Git. Instead of files you can set `PASSPORT_PRIVATE_KEY` and `PASSPORT_PUBLIC_KEY` in the environment, which is easier when several servers share one site. Changing the keys disconnects every editor.
+
+Then give the roles that should use Claude the permission **Connect Claude via Content MCP** (Users → Roles). Super users always have it.
+
+Optionally publish the config to add your editorial guidelines:
 
 ```bash
-php artisan vendor:publish --tag="statamic-content-mcp-config"
+php artisan vendor:publish --tag=content-mcp-config
 ```
-
-## Connecting an AI Client
-
-### Stdio (Claude Code, Cursor, etc.)
-
-Add to your project's `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "statamic-content": {
-      "type": "stdio",
-      "command": "php",
-      "args": ["artisan", "mcp:start", "content"]
-    }
-  }
-}
-```
-
-If you use Laravel Sail:
-
-```json
-{
-  "mcpServers": {
-    "statamic-content": {
-      "type": "stdio",
-      "command": "./vendor/bin/sail",
-      "args": ["artisan", "mcp:start", "content"]
-    }
-  }
-}
-```
-
-### HTTP (Claude Desktop, ChatGPT Desktop, etc.)
-
-The addon registers an HTTP transport at `/mcp/content`.
-
-Two auth modes are supported:
-
-- **`sanctum`** — recommended when your site stores users in the database
-- **`static_token`** — recommended fallback for file-based Statamic users
-
-#### Sanctum
-
-Use Sanctum when your site uses Eloquent users and can issue personal access tokens.
-
-#### Static token
-
-Use a shared bearer token plus a configured Statamic user when your site uses file-based users.
-
-Generate a strong token with a required Statamic user binding:
-
-```bash
-php artisan content-mcp:generate-static-token --user=agent@agent.md
-```
-
-Use `--raw` if you only want the token value for scripting:
-
-```bash
-php artisan content-mcp:generate-static-token --user=agent@agent.md --raw
-```
-
-Use `--length=` to control token length. Supported range: `32-128` characters.
 
 ```php
-'auth' => [
-    'driver' => 'static_token',
-    'static_token' => [
-        'token' => env('STATAMIC_CONTENT_MCP_STATIC_TOKEN'),
-        'user' => env('STATAMIC_CONTENT_MCP_STATIC_TOKEN_USER'),
-    ],
-],
+// config/statamic/content-mcp.php
+return [
+    'route' => 'mcp/content',
+    'instructions' => 'We write in plain, friendly English. Headlines in sentence case. No exclamation marks.',
+];
 ```
 
-Example `.env` values:
+`instructions` is sent to Claude at the start of every session and returned by `get_overview`.
 
-```env
-STATAMIC_CONTENT_MCP_AUTH_DRIVER=static_token
-STATAMIC_CONTENT_MCP_STATIC_TOKEN=replace-with-a-long-random-token
-STATAMIC_CONTENT_MCP_STATIC_TOKEN_USER=agent@agent.md
+The addon works with `php artisan config:cache` and `php artisan route:cache`.
+
+## Connecting Claude
+
+In Claude (web, desktop or mobile): **Settings → Connectors → Add custom connector**, and enter the endpoint URL:
+
+```
+https://example.com/mcp/content
 ```
 
-If you previously published an older config that used the legacy scalar form (`'auth' => 'sanctum'`), update it to the new array form before switching drivers.
+Claude registers itself, opens the Statamic login, and then shows a consent screen. The consent screen names the app, the address you will be sent back to (for Claude this is `claude.ai`), and the account that approves. Any app can call itself "Claude"; the address is what tells you who you are really connecting.
 
-The request authenticates with the bearer token, then the addon resolves the configured Statamic user and runs MCP tools under that user's normal Statamic permissions.
+Editors without the permission see a "No access" page instead of the consent screen.
 
-### Example remote MCP client config (`static_token`)
+## How permissions work
 
-For Claude Desktop or any other client that supports remote MCP over HTTP, use a server entry like this:
+Every request runs as the editor who approved the connection. `User::current()`, `auth()->user()` and Laravel's Gate all return that user, so your policies, event listeners and `updated_by` behave as they do in the Control Panel.
 
-```json
-{
-  "mcpServers": {
-    "statamic-content": {
-      "url": "https://example.com/mcp/content",
-      "headers": {
-        "Authorization": "Bearer <your-static-token>"
-      }
-    }
-  }
-}
-```
+All access goes through Statamic's policies on the actual object: an entry is listed or returned only if `can('view', $entry)`, changed only if `can('edit', $entry)`, published only if `can('publish', $entry)`, and so on. If your site replaces Statamic's policies, for example to limit editors to their own entries, those rules apply here too. Content the editor may not see is reported as not found.
 
-### Example remote MCP client config (`sanctum`)
+Field rules from the Control Panel apply as well: read-only and computed fields cannot be written, and editors without "edit other authors' entries" cannot change the author.
 
-```json
-{
-  "mcpServers": {
-    "statamic-content": {
-      "url": "https://example.com/mcp/content",
-      "headers": {
-        "Authorization": "Bearer <your-sanctum-token>"
-      }
-    }
-  }
-}
-```
-
-### Quick HTTP verification
-
-Before wiring a desktop client, verify the endpoint directly:
-
-```bash
-curl -X POST "https://example.com/mcp/content" \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -H "Authorization: Bearer <your-token>" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "initialize",
-    "params": {
-      "protocolVersion": "2024-11-05",
-      "capabilities": {},
-      "clientInfo": {
-        "name": "curl",
-        "version": "1.0.0"
-      }
-    }
-  }'
-```
-
-A successful response includes:
-
-- `"jsonrpc": "2.0"`
-- `"result.serverInfo.name": "statamic-content"`
-- `"result.serverInfo.version": "1.0.0"`
-
-## Configuration
-
-The published config file at `config/statamic/content-mcp.php` is fully documented with inline comments explaining each option. Key settings:
-
-- **`tools`** — Enable or disable individual tools
-- **`collections`** — Restrict which collections are exposed (`null` = all, or an array like `['pages', 'blog']`)
-- **`default_published`** — Whether entries are published on create (`false` = draft-first, recommended)
-- **`auth`** — HTTP auth driver config (`sanctum` or `static_token`)
-- **`pagination`** — Default and maximum page sizes for list endpoints
+The permission **Connect Claude via Content MCP** is checked on every request. Removing it from a role cuts access immediately, even for connections that already exist.
 
 ## Tools
 
-The addon exposes 7 MCP tools. Each tool uses an `action` parameter to keep the tool surface compact.
+| Tool | What it does |
+| --- | --- |
+| `get_overview` | The site, the acting editor, the collections, taxonomies, global sets and asset containers they may access, and your guidelines |
+| `get_blueprint` | The fields of an entry blueprint or global set, with the shape each field's value must have |
+| `find_entries` | List a collection, or search titles, slugs and content text; returns summaries and a total |
+| `get_entry` | One entry's meta and field values |
+| `get_global` | The values of a global set |
+| `find_assets` | Search files by filename or alt text |
+| `list_terms` | The terms of a taxonomy |
+| `create_entry` | Create a new entry, always as a draft |
+| `update_entry` | Change field values of an entry |
+| `publish_entry` | Publish an entry |
+| `unpublish_entry` | Turn an entry back into a draft |
+| `update_global` | Change values of a global set |
 
-### `site`
+Read tools are annotated as read-only and write tools as writes, so Claude can ask the editor for approval where it matters. There are no delete, upload, navigation or taxonomy-term write tools.
 
-Orientation tool. Start here to discover what's available.
+## Drafts, previews and publishing
 
-| Action        | Description                                                                        |
-| ------------- | ---------------------------------------------------------------------------------- |
-| `overview`    | Site name, collections, taxonomies, globals, asset containers, navigations         |
-| `collections` | Detailed collection info (title, blueprints, route, entry count, structure, dates) |
+`create_entry` always creates an unpublished draft, even for editors who may publish. `update_entry` never changes whether an entry is published. When a collection has revisions enabled, changes to a published entry are saved as unpublished changes (a working copy), like in the Control Panel.
 
-### `blueprints`
+Write tools return the entry's `edit_url` in the Control Panel and a `preview_url`, a Live Preview link that shows the entry as just saved, draft or not. Anyone with the link can open that preview until its token expires (about an hour). Claude publishes only when the editor asks it to, and only if the editor has the publish permission.
 
-Describe the field structure of any blueprint. Always inspect a blueprint before creating or updating content.
+Saving fires Statamic's normal events, so static caching, search indexes and Git automation work as usual.
 
-| Parameter         | Description                                                  |
-| ----------------- | ------------------------------------------------------------ |
-| `collection`      | Collection handle                                            |
-| `taxonomy`        | Taxonomy handle                                              |
-| `global`          | Global set handle                                            |
-| `asset_container` | Asset container handle                                       |
-| `blueprint`       | Blueprint handle (when a collection has multiple blueprints) |
+## Data format
 
-### `entries`
+Values are exchanged in the form Statamic stores them in the content files. `get_blueprint` tells Claude what each field expects: entry ids for entries fields, asset paths for assets fields, term slugs for terms fields, option keys for selects, and so on.
 
-Full entry lifecycle management.
+The exception is Bard. A Bard field without sets is an HTML string. A Bard field with sets is a list of blocks: `{"type": "text", "text": "<p>…</p>"}` for text and `{"type": "<set>", "id": "…", …fields}` for sets. Links to entries use `statamic://entry::<id>` and keep working when the entry's URL changes.
 
-| Action      | Description                                                          |
-| ----------- | -------------------------------------------------------------------- |
-| `list`      | List entries with optional status filter, sort, and pagination       |
-| `get`       | Get a single entry by ID or by slug + collection                     |
-| `create`    | Create an entry (draft by default). Accepts markdown for Bard fields |
-| `update`    | Partial update — merges with existing data                           |
-| `delete`    | Delete an entry                                                      |
-| `publish`   | Publish a draft entry                                                |
-| `unpublish` | Unpublish a live entry                                               |
+`update_entry` and `update_global` accept dot paths to change one nested value, where a segment is an object key or the `id` of a set or grid row: `{"page_builder.lx3k2a.heading": "New heading"}`. Content that was not changed is written back byte for byte as it was stored, so Git diffs show only real changes.
 
-### `globals`
+## Security notes
 
-| Action   | Description                                  |
-| -------- | -------------------------------------------- |
-| `list`   | List all global sets                         |
-| `get`    | Get a global set with its current values     |
-| `update` | Partial update — merges with existing values |
+- Authentication is OAuth with PKCE and dynamic client registration, provided by Laravel Passport and `laravel/mcp`. Access tokens last one hour, refresh tokens 90 days and are rotated on every use.
+- Tokens are bound to the `mcp:use` scope and checked for signature, expiry, revocation and a revoked client on every request.
+- The consent screen cannot be embedded in a frame.
+- Client registration and the endpoint are rate limited.
+- There are no delete tools.
+- To disconnect everyone, revoke their tokens (`oauth_access_tokens` and `oauth_refresh_tokens`) or rotate the Passport keys. To disconnect one editor, remove the permission from their role or revoke their tokens. Schedule `php artisan passport:purge` to clean up expired tokens.
+- `laravel/mcp` accepts redirect URIs on any domain by default. To allow only Claude, publish its config (`php artisan vendor:publish --tag=mcp-config`) and set `'redirect_domains' => ['https://claude.ai']`.
 
-### `taxonomies`
+## Limitations
 
-| Action        | Description                                    |
-| ------------- | ---------------------------------------------- |
-| `list`        | List all taxonomies with term counts           |
-| `get_terms`   | List terms in a taxonomy with pagination       |
-| `create_term` | Create a term (auto-generates slug from title) |
-| `update_term` | Update a term's data                           |
-| `delete_term` | Delete a term                                  |
-
-### `assets`
-
-Read-only asset browsing.
-
-| Action            | Description                                                           |
-| ----------------- | --------------------------------------------------------------------- |
-| `list_containers` | List all asset containers                                             |
-| `list`            | List assets in a container with optional folder filter and pagination |
-| `get`             | Get asset metadata (path, url, extension, size, alt text)             |
-
-### `search`
-
-Search entries by title across collections. Supports collection filter, status filter, and result limit.
-
-## Testing
-
-```bash
-composer test
-```
+- Single site: finding and creating entries, assets, terms and globals use the default site. Tools that take an entry id work on that entry in its own site.
+- No file uploads; Claude can only use assets that already exist.
+- Search loads the entries of the searched collections into memory, which is slow for very large collections.
+- Validation errors inside sets use Statamic's field paths, e.g. `content.2.attrs.values.quote`.
+- The addon configures Laravel Passport for itself: it sets Passport's guard to the Control Panel guard, the token lifetimes, the default scope and the consent screen. A site that already uses Passport for its own API will see those settings change.
+- If a site already published Passport's migrations, the addon uses the published copies. They must be Passport 13's.
 
 ## License
 
-MIT — see [LICENSE.md](LICENSE.md) for details.
+MIT

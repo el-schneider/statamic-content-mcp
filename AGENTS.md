@@ -1,38 +1,24 @@
 # AGENTS.md
 
-This file adds **addon-local** guidance only.
+Workflow, review and commit rules live in the repository root `AGENTS.md` when this addon sits inside a site; that file wins on conflicts.
 
-- Workflow, review cadence, retry rules, verification policy, and task tracking live in the repository root `AGENTS.md`.
-- If process guidance here conflicts with the root file, follow the **root `AGENTS.md`**.
-
-## Project Structure
-
-This is a Statamic addon. Key paths:
-
-- `src/` — PHP source (service provider, tools, support classes)
-- `config/` — publishable addon config
-- `resources/views/` — Blade views
-- `resources/js/` — frontend assets, if added later
-- `resources/dist/` — built assets, if frontend is added and committed
-- `routes/` — CP and action routes
-- `tests/` — Pest test suites
-
-## Canonical Commands
-
-Run these from `addons/statamic-content-mcp/`:
+## Commands
 
 ```bash
-composer ci
-composer test
-composer pint
+composer check   # pint --test, phpstan (level 8), pest
+composer fix     # pint
+composer test    # pest
 ```
 
-Use direct binaries only when a task needs exact flags not covered by the Composer scripts.
+## Landmines
 
-## Conventions
-
-- All PHP classes use `declare(strict_types=1)`.
-- Prefer `final` classes unless the framework requires extension.
-- Pest is the default test framework.
-- Match surrounding Laravel/Statamic style and keep changes minimal.
-- Frontend tooling only matters if frontend assets are introduced. Do not invent a frontend build pipeline preemptively.
+- Laravel's Gate guesses `Statamic\Policies\EntryPolicy` for `Statamic\Entries\Entry` before it looks at policies bound to the contract. Bind test policies to the concrete class.
+- Passport 13 only publishes its migrations. The service provider loads them from vendor unless `database/migrations/*_create_oauth_clients_table.php` exists.
+- `passport.guard` is set in a `booting` callback: Statamic may merge its config after our `register()`.
+- The consent middleware is attached to Passport's `passport.authorizations.authorize` route in `booted` and skipped when routes are cached. `RouteCacheTest` proves the cached routes still carry it.
+- laravel/mcp flattens `ValidationException` messages and drops field names. `ContentTool` catches it to keep them.
+- Statamic's process step normalises stored values (`enabled: true` on sets, `textAlign` on Bard nodes). Writes only touch changed fields and run through `AgentForm::keepUnchanged()`; the byte-identity tests in `AgentFormTest` guard this.
+- A date field defaulting to `now` fails Statamic's date validation unless resolved first (`ContentWriter::withNowDefaults()`).
+- Pest 5 needs PHP 8.4; `require-dev` allows Pest 4 so CI can test PHP 8.3.
+- Larastan does not resolve real-time facades (`Facades\…`); use `app(Class::class)`.
+- Tests: all Stache stores and the roles file point to `tests/__fixtures__/dev-null`, wiped after each test. Create content in the test; only blueprints are fixtures. `APP_DEBUG` is on so laravel/mcp shows exception messages.
