@@ -9,11 +9,16 @@ use Composer\InstalledVersions;
 use ElSchneider\ContentMcp\Http\Middleware\EnsureEditorCanConsent;
 use ElSchneider\ContentMcp\Http\Middleware\LockTokenExchange;
 use ElSchneider\ContentMcp\Http\ResolveBearerTokenUser;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Server\Registrar;
 use Laravel\Passport\Passport;
+use Statamic\Addons\FileSettings;
+use Statamic\Addons\FileSettingsRepository;
+use Statamic\Contracts\Addons\Settings as SettingsContract;
+use Statamic\Contracts\Addons\SettingsRepository;
 use Statamic\CP\Navigation\Nav as Navigation;
 use Statamic\Facades\Addon;
 use Statamic\Facades\CP\Nav;
@@ -124,6 +129,17 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
 
         // A closure, so labels follow the CP user's language and defaults the config file.
         $this->registerSettingsBlueprint(fn (): array => Settings::blueprint());
+
+        // Statamic binds one settings class for every addon; ours alone keeps its values literal.
+        // Only with Statamic's file repository: another storage driver brings its own class.
+        /** @var SettingsRepository $repository a site may bind its own */
+        $repository = $this->app->make(SettingsRepository::class);
+
+        if ($repository instanceof FileSettingsRepository) {
+            $this->app->bind(SettingsContract::class, fn (Application $app, array $parameters): SettingsContract => $parameters['addon']->package() === Settings::PACKAGE
+                ? new LiteralSettings($parameters['addon'], $parameters['settings'])
+                : new FileSettings($parameters['addon'], $parameters['settings']));
+        }
     }
 
     /**

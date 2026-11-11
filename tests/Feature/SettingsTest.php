@@ -69,6 +69,37 @@ it('lets guidelines saved in the Control Panel win over the config file', functi
         ->and(tool(editor(['access content mcp'], 'reader@example.com'), GetOverview::class)->data()['guidelines'])->toBe('Write like a gardener.');
 });
 
+it('keeps guidelines that show Antlers as plain text, through saving, initialize and get_overview', function () {
+    $guidelines = "Templates use {{ title }} and {{ 1 / 0 }}.\n\n```antlers\n{{ partial:hero }}\n```";
+
+    saveSettings(['instructions' => $guidelines])->assertOk()->assertJson(['saved' => true]);
+
+    $tokens = connectClaude(editor(['access content mcp']));
+    $instructions = mcp($tokens['access_token'], 'initialize', ['protocolVersion' => '2025-06-18', 'capabilities' => [], 'clientInfo' => ['name' => 't', 'version' => '1']])
+        ->assertOk()->json('result.instructions');
+
+    expect($instructions)->toContain($guidelines)
+        ->and(tool(editor(['access content mcp'], 'reader@example.com'), GetOverview::class)->data()['guidelines'])->toBe($guidelines);
+});
+
+it('keeps guidelines from the config file that show Antlers as plain text', function () {
+    config(['statamic.content-mcp.instructions' => 'Write {{ 1 / 0 }} literally.']);
+
+    $this->postJson('/oauth/register', ['redirect_uris' => [CLAUDE_CALLBACK]])->assertCreated();
+
+    expect(serverInstructions())->toContain('Write {{ 1 / 0 }} literally.')
+        ->and(tool(editor(['access content mcp']), GetOverview::class)->data()['guidelines'])->toBe('Write {{ 1 / 0 }} literally.');
+
+    $owner = editor(['access cp', SETTINGS_PERMISSION], 'owner@example.com');
+    $this->actingAs($owner)->getJson(cp_route('addons.settings.edit', 'statamic-content-mcp'))
+        ->assertOk()->assertJsonPath('values.instructions', 'Write {{ 1 / 0 }} literally.');
+
+    // Other addons keep Statamic's behaviour.
+    $other = app()->makeWith(Statamic\Contracts\Addons\Settings::class, ['addon' => Statamic\Addons\Addon::make('vendor/other'), 'settings' => ['sum' => '{{ 1 + 1 }}']]);
+
+    expect($other->get('sum'))->toBe('2');
+});
+
 it('falls back to the config file for guidelines left empty, which is what the form shows', function () {
     saveSettings(['instructions' => null])->assertOk();
 

@@ -97,7 +97,7 @@ final class Settings
      */
     private static function saved(string $key): mixed
     {
-        // raw(): Statamic's parsed values run Antlers over them and turn toggles into strings.
+        // raw(): only what was saved; all() adds the blueprint defaults.
         return Addon::get(self::PACKAGE)->settings()->raw()[$key] ?? null;
     }
 }
