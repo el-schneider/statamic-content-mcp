@@ -156,7 +156,7 @@ final class ContentWriter
             ->withReplacements(['id' => $entry->id(), 'collection' => $collection->handle(), 'site' => $entry->locale()])
             ->validate());
 
-        $values = self::written($fields, $preProcessed, $merged, $current, $handles);
+        $values = self::ownValues($entry, self::written($fields, $preProcessed, $merged, $current, $handles), $current);
 
         if ($values->has('slug')) {
             $entry->slug($values->pull('slug'));
@@ -199,7 +199,7 @@ final class ContentWriter
         $preProcessed = self::preProcess($fields, $merged);
         self::validate($fields, $merged, $patched, fn () => $preProcessed->validate());
 
-        NotSaved::unless($variables->merge(self::written($fields, $preProcessed, $merged, $current, $handles)->all())->save() !== false);
+        NotSaved::unless($variables->merge(self::ownValues($variables, self::written($fields, $preProcessed, $merged, $current, $handles), $current)->all())->save() !== false);
 
         return $variables;
     }
@@ -344,7 +344,7 @@ final class ContentWriter
             ->withReplacements(['id' => $term->id(), 'taxonomy' => $taxonomy, 'site' => $site])
             ->validate());
 
-        $values = self::written($fields, $preProcessed, $merged, $current, $handles);
+        $values = self::ownValues($term, self::written($fields, $preProcessed, $merged, $current, $handles), $current);
 
         if ($values->has('slug')) {
             $term->slug($values->pull('slug'));
@@ -476,6 +476,25 @@ final class ContentWriter
                 ? AgentForm::keepUnchanged($value, $before->get($handle), $current[$handle])
                 : $value,
         );
+    }
+
+    /**
+     * In a localization, the values it sets itself: a value it inherits and the client
+     * sent back unchanged stays inherited, so later changes of the origin still show.
+     *
+     * @param  Values<array-key, mixed>  $values
+     * @param  array<array-key, mixed>  $current
+     * @return Values<array-key, mixed>
+     */
+    private static function ownValues(Entry|Variables|LocalizedTerm $item, Values $values, array $current): Values
+    {
+        if ($item->isRoot()) {
+            return $values;
+        }
+
+        $own = $item->data();
+
+        return $values->reject(fn (mixed $value, int|string $handle): bool => ! $own->has($handle) && $value === ($current[$handle] ?? null));
     }
 
     /**

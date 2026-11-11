@@ -95,6 +95,16 @@ it('creates a term in another site with its default-site version, and keeps non-
         ->and(Term::find('tags::musik')->in('default')->get('title'))->toBe('Musik')
         ->and($errors['color'][0])->toContain('Not localizable')
         ->and(YAML::file(Term::find('tags::musik')->path())->parse()['color'])->toBe('blue');
+
+    // Sending back what get_term showed keeps inherited values inherited.
+    $jazz = Term::make('jazz')->taxonomy('tags')->data(['title' => 'Jazz', 'description' => 'Smooth', 'color' => 'gold']);
+    $jazz->dataForLocale('de', ['title' => 'Jazz DE']);
+    $jazz->save();
+    $data = tool($editor, GetTerm::class, ['taxonomy' => 'tags', 'slug' => 'jazz', 'site' => 'de'])->data()['data'];
+
+    tool($editor, UpdateTerm::class, ['taxonomy' => 'tags', 'slug' => 'jazz', 'site' => 'de', 'data' => [...$data, 'title' => 'Jazzmusik']])->assertHasNoErrors();
+
+    expect(YAML::file(Term::find('tags::jazz')->path())->parse()['localizations']['de'])->toBe(['title' => 'Jazzmusik', 'updated_by' => $editor->id(), 'updated_at' => Term::find('tags::jazz')->in('de')->get('updated_at')]);
 });
 
 it('describes taxonomy blueprints and takes exactly one source', function () {

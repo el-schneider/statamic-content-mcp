@@ -141,6 +141,25 @@ it('writes changes of a localization to that localization only', function () {
         ->and(Entries::find($origin->id())->get('summary'))->toBe('An evening of music');
 });
 
+it('keeps inherited values inherited when a localization is sent back as it was read', function () {
+    // Regression: resending get_entry's data froze inherited values into the localization.
+    [$origin, $german] = localizedEvent();
+    $data = tool($this->editor, GetEntry::class, ['id' => $german->id()])->data()['data'];
+
+    tool($this->editor, UpdateEntry::class, ['id' => $german->id(), 'data' => [...$data, 'title' => 'Konzertabend']])->assertHasNoErrors();
+
+    expect(Entries::find($german->id())->data()->except(['updated_by', 'updated_at'])->all())->toBe(['title' => 'Konzertabend']);
+
+    $contact = GlobalSet::findByHandle('contact');
+    $contact->in('default')->data(['hours' => '9–5', 'phone' => '123'])->save();
+    $contact->in('de')->data(['hours' => '9–17 Uhr'])->save();
+    $global = tool($this->editor, GetGlobal::class, ['handle' => 'contact', 'site' => 'de'])->data()['data'];
+
+    tool($this->editor, UpdateGlobal::class, ['handle' => 'contact', 'site' => 'de', 'data' => $global])->assertHasNoErrors();
+
+    expect(GlobalSet::findByHandle('contact')->in('de')->data()->all())->toBe(['hours' => '9–17 Uhr']);
+});
+
 it('refuses non-localizable fields on a localization, like the CP', function () {
     [$origin, $german] = localizedEvent();
 
