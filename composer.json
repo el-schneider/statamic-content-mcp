@@ -1,22 +1,39 @@
 {
     "name": "el-schneider/statamic-content-mcp",
-    "description": "A Statamic addon",
+    "description": "Connect Claude to a Statamic site so editors can read and draft content with their own Control Panel permissions.",
     "license": "MIT",
+    "keywords": [
+        "statamic",
+        "statamic-addon",
+        "mcp",
+        "model-context-protocol",
+        "claude",
+        "oauth",
+        "laravel"
+    ],
     "homepage": "https://github.com/el-schneider/statamic-content-mcp",
+    "support": {
+        "issues": "https://github.com/el-schneider/statamic-content-mcp/issues",
+        "source": "https://github.com/el-schneider/statamic-content-mcp"
+    },
     "authors": [
         {
-            "name": "el-schneider",
+            "name": "Jonas List",
             "homepage": "https://github.com/el-schneider"
         }
     ],
     "require": {
-        "statamic/cms": "^6.0",
-        "laravel/mcp": "^0.6"
+        "php": "^8.3",
+        "laravel/mcp": "^1.2",
+        "laravel/passport": "^13.0",
+        "statamic/cms": "^6.31"
     },
     "require-dev": {
-        "orchestra/testbench": "^10.0",
-        "laravel/pint": "^1.21",
-        "pestphp/pest": "^4.1"
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.27",
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^5.0",
+        "pestphp/pest-plugin-laravel": "^5.0"
     },
     "autoload": {
         "psr-4": {
@@ -36,8 +53,8 @@
     },
     "extra": {
         "statamic": {
-            "name": "statamic-content-mcp",
-            "description": "A Statamic addon"
+            "name": "Content MCP",
+            "description": "Connect Claude to your site so editors can read and draft content with their own permissions."
         },
         "laravel": {
             "providers": [
@@ -45,14 +62,13 @@
             ]
         }
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
     "scripts": {
-        "pint": "vendor/bin/pint",
-        "test": "vendor/bin/pest --no-coverage",
-        "ci": [
-            "@pint --test",
-            "@test"
-        ]
+        "check": [
+            "vendor/bin/pint --test",
+            "vendor/bin/phpstan analyse --no-progress --memory-limit=1G",
+            "vendor/bin/pest"
+        ],
+        "fix": "vendor/bin/pint",
+        "test": "vendor/bin/pest"
     }
 }

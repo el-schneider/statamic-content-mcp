@@ -1,8 +1,0 @@
-title: Tag
-fields:
-  - handle: title
-    field:
-      type: text
-      display: Title
-      validate:
-        - required
