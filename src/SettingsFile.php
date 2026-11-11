@@ -25,7 +25,7 @@ final class SettingsFile extends FileSettings
 
         return array_filter(
             $this->raw(),
-            fn (mixed $value, string $key): bool => ! in_array($value, [null, ''], true) && $value !== ($defaults[$key] ?? null),
+            fn (mixed $value, string $key): bool => ! in_array($value, [null, ''], true) && self::comparable($value) !== self::comparable($defaults[$key] ?? null),
             ARRAY_FILTER_USE_BOTH,
         );
     }
@@ -43,5 +43,25 @@ final class SettingsFile extends FileSettings
     protected function shouldRemoveNullsFromFileData(): bool
     {
         return false;
+    }
+
+    /**
+     * A config value read from a file may end in a newline or use CRLF, and may be a list
+     * with gaps in its keys; the form posts it trimmed, with LF, reindexed.
+     */
+    private static function comparable(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            return trim(str_replace(["\r\n", "\r"], "\n", $value));
+        }
+
+        if (is_array($value)) {
+            $items = array_map(self::comparable(...), array_values($value));
+            sort($items);
+
+            return $items;
+        }
+
+        return $value;
     }
 }

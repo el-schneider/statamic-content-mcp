@@ -192,6 +192,24 @@ it('stores only what the owner changed, so untouched fields follow later changes
         ->and(Settings::deletes())->toBeTrue();
 });
 
+it('stores nothing for an untouched form whose config values differ from the posted ones only in form', function () {
+    // Guidelines read from a Markdown file with CRLF endings, a list filtered with its keys kept, a toggle from env.
+    config([
+        'statamic.content-mcp.instructions' => "# Voice\r\n\r\nPlain and friendly.\r\n",
+        'statamic.content-mcp.redirect_domains' => [2 => 'https://claude.ai', 5 => 'https://claude.com'],
+        'statamic.content-mcp.deletes' => '1',
+    ]);
+
+    // What a browser posts back: CodeMirror's LF endings, trimmed by Laravel's TrimStrings, a reindexed list.
+    saveSettings([
+        'instructions' => "# Voice\n\nPlain and friendly.",
+        'redirect_domains' => ['https://claude.ai', 'https://claude.com'],
+        'deletes' => true,
+    ])->assertOk()->assertJson(['saved' => true]);
+
+    expect(Addon::get('el-schneider/statamic-content-mcp')->settings()->raw())->toBe([]);
+});
+
 it('lets an emptied list of allowed apps stop every app from registering', function () {
     saveSettings(['redirect_domains' => []])->assertOk();
 
