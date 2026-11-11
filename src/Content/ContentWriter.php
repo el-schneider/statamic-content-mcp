@@ -230,11 +230,10 @@ final class ContentWriter
     {
         $preProcessed = $fields->addValues(self::withNowDefaults($fields, $values))->preProcess();
 
-        // Field::preProcess() puts the default in place of null, so validation would see the default.
+        // Field::preProcess() puts the default in place of null, also nested, so validation would see the default.
         foreach ($values as $handle => $value) {
-            if ($value === null) {
-                $preProcessed->get($handle)?->setValue(null);
-            }
+            $field = $preProcessed->get($handle);
+            $field?->setValue(AgentForm::keepInputKeys($field->value(), $value, nullsOnly: true));
         }
 
         return $preProcessed;

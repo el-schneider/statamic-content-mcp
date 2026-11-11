@@ -20,6 +20,7 @@ tabs:
                         - handle: heading
                           field:
                             type: text
+                            default: Untitled
                             validate:
                               - required
                         - handle: badge

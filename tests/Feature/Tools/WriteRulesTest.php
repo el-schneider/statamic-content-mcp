@@ -155,3 +155,13 @@ it('clears optional fields set to null instead of writing their default', functi
         ->and(Entries::find($created['id'])->get('layout'))->toBeNull()
         ->and(Entries::find($defaulted['id'])->get('layout'))->toBe('standard');
 });
+
+it('rejects null for a required nested field even when it has a default', function () {
+    // Regression: validation saw the default that preProcess put in place of the null.
+    $page = entry('pages', ['title' => 'P', 'page_builder' => [['id' => 's1', 'type' => 'hero', 'heading' => 'H']]]);
+
+    $errors = validationErrors(tool($this->editor, UpdateEntry::class, ['id' => $page->id(), 'data' => ['page_builder.s1.heading' => null]]));
+
+    expect(array_keys($errors))->toBe(['page_builder.0.heading'])
+        ->and(Entries::find($page->id())->get('page_builder')[0]['heading'])->toBe('H');
+});

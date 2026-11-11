@@ -119,10 +119,10 @@ final class AgentForm
     /**
      * Processing rebuilds groups from the blueprint, dropping keys it does not
      * know, and Field::preProcess() replaces null with the field's default. This
-     * puts back unknown keys the input still has and removes keys the input set
-     * to null. Rows and sets are matched by id.
+     * removes keys the input set to null and, unless $nullsOnly, puts back
+     * unknown keys the input still has. Rows and sets are matched by id.
      */
-    public static function keepInputKeys(mixed $processed, mixed $input): mixed
+    public static function keepInputKeys(mixed $processed, mixed $input, bool $nullsOnly = false): mixed
     {
         if ($input === null) {
             return null;
@@ -133,21 +133,21 @@ final class AgentForm
         }
 
         if (array_is_list($input)) {
-            return array_map(function (mixed $item) use ($input): mixed {
+            return array_map(function (mixed $item) use ($input, $nullsOnly): mixed {
                 $id = self::rowId($item);
                 $row = $id === null ? null : collect($input)->first(fn (mixed $row): bool => self::rowId($row) === $id);
 
-                return $row === null ? $item : self::keepInputKeys($item, $row);
+                return $row === null ? $item : self::keepInputKeys($item, $row, $nullsOnly);
             }, $processed);
         }
 
         foreach ($input as $key => $value) {
             if ($value === null) {
                 unset($processed[$key]);
-            } elseif (! array_key_exists($key, $processed)) {
+            } elseif (array_key_exists($key, $processed)) {
+                $processed[$key] = self::keepInputKeys($processed[$key], $value, $nullsOnly);
+            } elseif (! $nullsOnly) {
                 $processed[$key] = $value;
-            } else {
-                $processed[$key] = self::keepInputKeys($processed[$key], $value);
             }
         }
 
@@ -537,7 +537,7 @@ final class AgentForm
     }
 
     /**
-     * The id of a replicator set or grid row, or of a Bard set node.
+     * The id of a replicator set or grid row (`_id` once preprocessed), or of a Bard set node.
      */
     private static function rowId(mixed $row): ?string
     {
@@ -545,7 +545,7 @@ final class AgentForm
             return null;
         }
 
-        $id = $row[self::idKey()] ?? (($row['type'] ?? null) === 'set' ? ($row['attrs']['id'] ?? null) : null);
+        $id = $row[self::idKey()] ?? $row['_id'] ?? (($row['type'] ?? null) === 'set' ? ($row['attrs']['id'] ?? null) : null);
 
         return is_string($id) ? $id : null;
     }
