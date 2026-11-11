@@ -41,7 +41,7 @@ php artisan passport:keys
 
 `migrate` creates Laravel Passport's tables. `passport:keys` writes the OAuth signing keys to `storage/oauth-private.key` and `storage/oauth-public.key`. Run it once per environment and keep the keys out of Git. You can set `PASSPORT_PRIVATE_KEY` and `PASSPORT_PUBLIC_KEY` in the environment instead, which is easier when several servers share one site. Changing the keys disconnects every editor.
 
-Statamic publishes the addon's Control Panel scripts to `public/vendor/statamic-content-mcp` when Composer installs or updates it. If the Content MCP pages stay blank, publish them yourself: `php artisan vendor:publish --tag=statamic-content-mcp --force`.
+Statamic publishes the addon's Control Panel scripts to `public/vendor/statamic-content-mcp` when it runs `php artisan statamic:install`, which a Statamic site does after every `composer install` and `composer update`. Until they are published, the Content MCP pages cannot load; the rest of the Control Panel works as before. To publish them yourself: `php artisan vendor:publish --tag=statamic-content-mcp --force`.
 
 Then give the roles that should use an assistant the permission **Use AI assistants through Content MCP** (Users → Roles). Super users always have it.
 

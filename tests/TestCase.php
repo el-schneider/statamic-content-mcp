@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests;
 
 use ElSchneider\ContentMcp\ContentMcpServiceProvider;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Laravel\Mcp\Server\McpServiceProvider;
 use Laravel\Passport\PassportServiceProvider;
@@ -25,7 +26,8 @@ abstract class TestCase extends AddonTestCase
      * A run killed mid-test (e.g. output piped into `head`) leaves its files behind:
      * RouteCacheTest's cached routes would make every later test boot with them, and
      * AddonTestCase wipes the fake Stache directory only in tearDown. Addon settings
-     * saved through the Control Panel land in the skeleton's resources/addons.
+     * saved through the Control Panel land in the skeleton's resources/addons, the
+     * published Control Panel build in its public/vendor.
      */
     protected function setUp(): void
     {
@@ -34,6 +36,8 @@ abstract class TestCase extends AddonTestCase
                 unlink($path);
             }
         }
+
+        (new Filesystem)->deleteDirectory(static::applicationBasePath().'/public/vendor');
 
         parent::setUp();
 

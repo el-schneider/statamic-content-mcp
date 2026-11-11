@@ -35,6 +35,14 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
     protected $translations = false;
 
     /**
+     * Built into resources/dist and committed; sites run no frontend build. Statamic
+     * publishes it after `statamic:install`, because this property is set.
+     *
+     * @var array{input: list<string>, publicDirectory: string}
+     */
+    protected $vite = ['input' => ['resources/js/cp.ts'], 'publicDirectory' => 'resources/dist'];
+
+    /**
      * The Content MCP area under Tools; each page shows only to those who may open it.
      */
     public static function navigation(Navigation $nav): void
@@ -112,12 +120,26 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
 
         Nav::extend(self::navigation(...));
 
-        // Built into resources/dist and committed; sites run no frontend build. Registered
-        // here, not with $vite, whose docblock in older Statamic versions allows no options.
-        $this->registerVite(['input' => ['resources/js/cp.ts'], 'publicDirectory' => 'resources/dist']);
-
         // A closure, so labels follow the CP user's language and defaults the config file.
         $this->registerSettingsBlueprint(fn (): array => Settings::blueprint());
+    }
+
+    /**
+     * Laravel's Vite throws on a missing manifest, and every CP page renders every addon's
+     * build. Until ours is published it is only offered for publishing, so a site that has
+     * not run `statamic:install` since installing us keeps a working Control Panel.
+     */
+    protected function bootVite(): static
+    {
+        $target = public_path("vendor/{$this->getAddon()->packageName()}/build/");
+
+        if (is_file("{$target}manifest.json")) {
+            return parent::bootVite();
+        }
+
+        $this->publishes(["{$this->getAddon()->directory()}resources/dist/build/" => $target], $this->getAddon()->slug());
+
+        return $this;
     }
 
     /**
