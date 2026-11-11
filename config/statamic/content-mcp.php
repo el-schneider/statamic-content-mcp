@@ -29,4 +29,20 @@ return [
 
     'instructions' => null,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Redirect Domains
+    |--------------------------------------------------------------------------
+    |
+    | The domains OAuth clients may send editors back to after they approve a
+    | connection. Only apps on these domains can register as a client. Add
+    | 'http://localhost' to also allow local clients such as Claude Code.
+    |
+    | Ignored when your app has its own config/mcp.php: then its
+    | `redirect_domains` setting is used.
+    |
+    */
+
+    'redirect_domains' => ['https://claude.ai', 'https://claude.com'],
+
 ];

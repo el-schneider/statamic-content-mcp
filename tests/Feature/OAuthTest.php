@@ -177,3 +177,26 @@ it('answers prompt=none for a guest with login_required instead of a login page'
 
     expect($redirect)->toStartWith(CLAUDE_CALLBACK.'?')->toContain('error=login_required');
 });
+
+it('lets only Claude register clients by default', function () {
+    // laravel/mcp's own default accepts redirect URIs on any domain.
+    $this->postJson('/oauth/register', ['redirect_uris' => ['https://claude.com/api/mcp/auth_callback']])->assertCreated();
+    $this->postJson('/oauth/register', ['redirect_uris' => ['https://evil.example/callback']])
+        ->assertStatus(400)
+        ->assertJsonPath('error', 'invalid_redirect_uri');
+});
+
+it('leaves redirect domains to a site that configures laravel/mcp itself', function () {
+    $published = config_path('mcp.php');
+    file_put_contents($published, "<?php return ['redirect_domains' => ['https://evil.example']];");
+
+    try {
+        $this->refreshApplication();
+        $this->artisan('migrate');
+
+        $this->postJson('/oauth/register', ['redirect_uris' => ['https://evil.example/callback']])->assertCreated();
+        $this->postJson('/oauth/register', ['redirect_uris' => [CLAUDE_CALLBACK]])->assertStatus(400);
+    } finally {
+        unlink($published);
+    }
+});
