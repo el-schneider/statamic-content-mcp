@@ -15,6 +15,7 @@ use Statamic\Fieldtypes\Group;
 use Statamic\Fieldtypes\Replicator;
 use Statamic\Fieldtypes\RowId;
 use Statamic\Support\Arr;
+use stdClass;
 
 /**
  * Converts field values between Statamic's stored form (what is in the YAML
@@ -31,13 +32,24 @@ final class AgentForm
      * The values of a blueprint's fields, as `get_*` tools return them.
      *
      * @param  array<array-key, mixed>  $stored
-     * @return array<array-key, mixed>
+     * @return array<array-key, mixed>|stdClass
      */
-    public static function ofBlueprint(Blueprint $blueprint, array $stored): array
+    public static function ofBlueprint(Blueprint $blueprint, array $stored): array|stdClass
     {
         $fields = $blueprint->fields();
 
-        return self::fromStored($fields, Arr::only(Arr::removeNullValues($stored), $fields->all()->keys()->all()));
+        return self::object(self::fromStored($fields, Arr::only(Arr::removeNullValues($stored), $fields->all()->keys()->all())));
+    }
+
+    /**
+     * A map for a JSON response: PHP's empty array would become `[]`, a list.
+     *
+     * @param  array<array-key, mixed>  $map
+     * @return array<array-key, mixed>|stdClass
+     */
+    public static function object(array $map): array|stdClass
+    {
+        return $map === [] ? new stdClass : $map;
     }
 
     /**

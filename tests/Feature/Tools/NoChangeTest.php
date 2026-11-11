@@ -78,3 +78,20 @@ it('does not save a global set, a term, an asset or a navigation when nothing ch
 
     expect($this->saves)->toBe(0);
 });
+
+it('sends empty data as a JSON object, not as a list', function () {
+    // Regression: PHP's empty array became `[]`, which clients read as a list.
+    $entry = entry('blog', []);
+    Storage::fake('assets');
+    AssetContainer::make('assets')->disk('assets')->save();
+    Storage::disk('assets')->put('bare.txt', 'x');
+    $nav = Nav::make('main')->title('Main');
+    $nav->save();
+    $nav->makeTree('default', [['id' => 'n1', 'url' => '/a']])->save();
+    $json = fn (Laravel\Mcp\Server\Testing\TestResponse $response): string => $response->assertHasNoErrors()->contentBlocks()[0]['text'];
+
+    expect($json(tool($this->editor, GetEntry::class, ['id' => $entry->id()])))->toContain('"data":{}')
+        ->and($json(tool($this->editor, GetGlobal::class, ['handle' => 'footer'])))->toContain('"data":{}')
+        ->and($json(tool($this->editor, GetAsset::class, ['id' => 'assets::bare.txt'])))->toContain('"data":{}')
+        ->and($json(tool($this->editor, GetNavigation::class, ['handle' => 'main'])))->toContain('"data":{}');
+});

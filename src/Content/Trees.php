@@ -158,7 +158,7 @@ final class Trees
             'title' => $branch['title'] ?? $entry?->value('title'),
             'url' => $branch['url'] ?? $entry?->absoluteUrl(),
             'entry' => $branch['entry'] ?? null,
-            'data' => AgentForm::fromStored($fields, $branch['data'] ?? []),
+            'data' => AgentForm::object(AgentForm::fromStored($fields, $branch['data'] ?? [])),
         ];
     }
 
