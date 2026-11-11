@@ -6,6 +6,7 @@
 composer check   # pint --test, phpstan (level 8), pest
 composer fix     # pint
 composer test    # pest
+uv run scripts/oauth-e2e.py https://site.example [email password]   # walks the OAuth + MCP flow against a running site, as a Claude connector does
 ```
 
 ## Landmines
