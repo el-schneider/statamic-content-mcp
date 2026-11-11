@@ -44,6 +44,8 @@ final class ContentMcpServer extends Server
         - `create_entry` always saves a draft. Show the editor the returned `preview_url` so they can review it.
         - Publish or unpublish only when the editor asks for it.
         - Link to other entries in rich text (Bard) with `statamic://entry::<id>` hrefs; the site turns them into URLs.
+        - On a multi-site install, tools that find or create take a `site`; tools that take an id work in that item's own site.
+        - `get_asset` shows you an image, e.g. to write its alt text. `upload_asset` downloads from a public URL; files attached to the chat cannot be uploaded.
         MARKDOWN;
 
     protected array $tools = [

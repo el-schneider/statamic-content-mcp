@@ -27,6 +27,15 @@ uv run scripts/oauth-e2e.py https://site.example [email password]   # walks the 
 - league/oauth2-server accepts PKCE `plain` and treats a missing method as plain; `EnsureEditorCanConsent` requires S256. It also handles `prompt=login` with Passport's `promptedForLogin` session flag, since Passport's own path redirects to a `login` route Statamic lacks.
 - `mcp.redirect_domains` (laravel/mcp default `['*']`) is set from our config only when `config/mcp.php` does not exist. A file check, because with `config:cache` the cached value no longer shows who set it.
 - Tests that veto saves with `Event::listen(…Saving…)` must create their fixtures first, or the fixture save is vetoed too.
+- Statamic dispatches saving events halting: a listener that returns anything but null stops the rest. Test listeners that change the item must return nothing.
+- Guzzle hands `stream => true` requests to its StreamHandler, which ignores `curl` options, so `CURLOPT_RESOLVE` (the pin against DNS rebinding) would silently do nothing. `RemoteFile` streams into a sink whose `write()` throws past the size cap; that aborts curl's transfer. Its tests inject a resolver and a Guzzle `MockHandler`, not `Http::fake()` (whose sink handling breaks on stream objects).
+- `LocalizedTerm::origin()` returns the default-site term even for the default site itself. Walk origin chains until `isRoot()`, never until `origin() === null`.
+- A cloned tree keeps its cached flattened pages; `Trees::assertUniqueUris()` flushes them before it reads URIs.
+- Collection trees and their entry ids are Blink-cached per request. A cancelled tree save would leave the changed tree in that cache, so `Trees::save()` restores it; tests that read a tree after deleting entries flush Blink.
+- In tests the Stache item cache hands out the same object, so a renamed term is still found under its old key. Assert on the files.
+- `Asset::delete()` returns false when vetoed, although its docblock says `$this`.
+- `statamic.assets.lowercase` is on by default: uploaded filenames are lowercased.
+- Statamic's entry query contract is an empty interface; `whereIn()` on `Entry::query()` needs a phpstan ignore.
 - Pest 5 needs PHP 8.4; `require-dev` allows Pest 4 so CI can test PHP 8.3.
 - Larastan does not resolve real-time facades (`Facades\…`); use `app(Class::class)`.
 - Tests: all Stache stores and the roles file point to `tests/__fixtures__/dev-null`, wiped after each test. Create content in the test; only blueprints are fixtures. `APP_DEBUG` is on so laravel/mcp shows exception messages.

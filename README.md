@@ -8,15 +8,16 @@
 
 ## Features
 
-- **Made for editors**: Entries, globals, assets and taxonomy terms. No blueprint, user, cache or system tools, so there is nothing on the other end that can break a site.
+- **Made for editors**: Entries, globals, assets, taxonomy terms and navigations, in every site of a multi-site install. No blueprint, user, cache or system tools, so there is nothing on the other end that can break a site.
 - **One URL, no tokens**: Editors add the site as a custom connector in Claude (web, desktop or mobile) and sign in through the Control Panel login. Nobody creates, copies or stores an API key.
 - **Your permissions, unchanged**: Every request runs as the editor's own Statamic user and goes through Statamic's policies on the actual entry, global or asset. Custom policies, such as "authors only see their own entries", apply without extra setup.
-- **Drafts first**: New entries are always drafts. Publishing is a separate tool, so Claude asks before anything goes live. There are no delete tools.
+- **Drafts first**: New entries are always drafts. Publishing is a separate tool, so Claude asks before anything goes live. Delete tools exist only if you turn them on.
 - **Preview before publish**: Every write returns a Live Preview link that renders the draft through your templates.
 - **Edits one block, not the page**: Claude can change a single field inside a page builder set. Everything it did not touch is written back byte for byte, so Git diffs show only the real change.
 - **Speaks your blueprints**: Bard, Replicator, Grid and Group fields at any depth, validated by the same rules as a save in the Control Panel.
+- **Sees your images**: Claude looks at a scaled-down copy of an image, for example to write its alt text, and adds files from a URL through your containers' upload rules.
 - **Your editorial voice built in**: Put tone and style guidelines in the config and Claude receives them in every session.
-- **Small and standard**: Twelve tools, OAuth by Laravel Passport, protocol by `laravel/mcp`. No Control Panel pages, no frontend build.
+- **Small and standard**: OAuth by Laravel Passport, protocol by `laravel/mcp`. No Control Panel pages, no frontend build.
 - **Works with file users**: Statamic users stay where they are. Only the OAuth tables need a database, and SQLite is enough.
 
 ## Requirements
@@ -24,6 +25,7 @@
 - PHP 8.3+
 - Statamic 6.31+ on Laravel 12 or 13
 - A database for Passport's OAuth tables
+- The PHP curl extension, for `upload_asset`
 - A public HTTPS URL, because Claude connects from Anthropic's servers
 
 ## Installation
@@ -64,18 +66,23 @@ return [
     'route' => 'mcp/content',
     'instructions' => 'We write in plain, friendly English. Headlines in sentence case. No exclamation marks.',
     'redirect_domains' => ['https://claude.ai', 'https://claude.com'],
+    'uploads' => ['max_size' => 10 * 1024 * 1024],
+    'deletes' => false,
 ];
 ```
 
 - `route` is the path of the endpoint.
 - `instructions` holds your editorial guidelines. Claude receives them at the start of every session and in `get_overview`. Field `instructions` in your blueprints reach Claude too, through `get_blueprint`.
 - `redirect_domains` lists where OAuth clients may send the editor back after approval, which decides which apps can register at all. The default allows only Claude. To connect a local client such as Claude Code, add `'http://localhost'` (any port). If your app has its own `config/mcp.php` (the config of `laravel/mcp`), its `redirect_domains` is used and this setting is ignored.
+- `uploads.max_size` is the largest file in bytes `upload_asset` downloads. The download stops as soon as it is exceeded. Your containers' validation rules apply as well.
+- `deletes` offers `delete_entry`, `delete_term` and `delete_asset`. It is off by default: content Claude reads, such as a page or an uploaded document, can contain text that tries to steer it, and a delete cannot be undone. Editors still need the delete permission on each item.
 
 ## Permissions
 
 Every request runs as the editor who approved the connection. `User::current()`, `auth()->user()` and Laravel's Gate all return that user, so your policies, event listeners and `updated_by` behave as they do in the Control Panel.
 
-- An entry is listed or returned only if `can('view', $entry)`, changed only if `can('edit', $entry)`, published only if `can('publish', $entry)`. The same holds for globals, assets and terms.
+- An entry is listed or returned only if `can('view', $entry)`, changed only if `can('edit', $entry)`, published only if `can('publish', $entry)`, deleted only if `can('delete', $entry)`. The same holds for globals, assets, terms and navigations. Moving pages needs the collection's reorder permission, uploading the container's upload permission.
+- On a multi-site install, Claude works only in the sites the editor may access.
 - Content the editor may not see is reported as not found.
 - Read-only and computed fields cannot be changed, also inside groups, grids and sets.
 - Editors without "edit other authors' entries" cannot change the author.
@@ -88,13 +95,16 @@ To give Claude less than an editor has, connect with a dedicated user and a narr
 
 Read:
 
-- `get_overview`: the site, the acting editor, what they may access, and your guidelines
-- `get_blueprint`: the fields of a blueprint or global set, and the shape each value must have
+- `get_overview`: the sites, the acting editor, what they may access, and your guidelines
+- `get_blueprint`: the fields of an entry, term, global set, navigation or asset blueprint, and the shape each value must have
 - `find_entries`: list a collection, or search titles, slugs and content
 - `get_entry`: one entry's meta and field values
 - `get_global`: the values of a global set
-- `find_assets`: search files by filename or alt text
-- `list_terms`: the terms of a taxonomy
+- `find_assets`: search files by folder, filename or alt text
+- `get_asset`: one file's meta and data, and for images a scaled-down copy to look at
+- `list_terms`: the terms of a taxonomy, or those matching a search
+- `get_term`: one term's values
+- `get_navigation`: the tree of a navigation
 
 Write:
 
@@ -102,7 +112,17 @@ Write:
 - `update_entry`: change field values of an entry
 - `publish_entry`: publish an entry
 - `unpublish_entry`: turn an entry back into a draft
+- `move_entry`: move a page in a collection's page tree
+- `localize_entry`: create an entry's version for another site (multi-site installs only)
 - `update_global`: change values of a global set
+- `create_term`, `update_term`: add or change taxonomy terms
+- `update_asset`: change a file's data, such as its alt text
+- `upload_asset`: add a file from a public URL
+- `update_navigation`: change the tree of a navigation
+
+Delete (only with `deletes` on):
+
+- `delete_entry`, `delete_term`, `delete_asset`
 
 Read tools are annotated as read-only, so an editor can allow them once and still be asked for every write.
 
@@ -113,6 +133,9 @@ Read tools are annotated as read-only, so an editor can allow them once and stil
 - Every write returns the entry's `edit_url` and a `preview_url`. Anyone with the preview link can open it until its token expires (about an hour).
 - Saving fires Statamic's normal events, so static caching, search indexes and Git automation work as usual. If one of your listeners cancels a save, the tool reports an error.
 - Without a `slug`, `create_entry` builds one from the title in the site's language. Unique-slug rules on the blueprint still apply.
+- Globals, terms, navigations, page moves and asset data have no drafts in Statamic. Changes to them are live on save.
+- In a localization, Claude reads what the entry shows, inherited values included, and changes only that localization. Fields that are not localizable belong to the origin entry, as in the Control Panel.
+- `delete_entry` moves child pages up to the deleted page's parent, as the Control Panel does. An entry with versions in other sites needs a choice: delete them too, or keep them as independent entries.
 
 ## Data format
 
@@ -129,7 +152,7 @@ Bard is the exception. A Bard field without sets is an HTML string. A Bard field
 
 Links to entries use `statamic://entry::<id>` and keep working when the entry's URL changes.
 
-`update_entry` and `update_global` accept dot paths to change one nested value. A segment is an object key or the `id` of a set or grid row:
+`update_entry`, `update_global`, `update_term` and `update_asset` accept dot paths to change one nested value. A segment is an object key or the `id` of a set or grid row:
 
 ```json
 { "page_builder.lx3k2a.heading": "New heading" }
@@ -137,12 +160,16 @@ Links to entries use `statamic://entry::<id>` and keep working when the entry's 
 
 `null` clears a field.
 
+Validation errors use the same paths, with the `id` of a set or row, or its position for one the request adds. A number field rejects a value such as `"2abc"` instead of storing `2`.
+
 ## Security
 
 - OAuth with PKCE (S256 only) and dynamic client registration, by Laravel Passport and `laravel/mcp`.
 - Access tokens last one hour. Refresh tokens last 90 days and rotate on every use.
 - Each request checks the token's signature, expiry, revocation, scope and client.
 - Only clients that redirect to `redirect_domains` can register.
+- `upload_asset` downloads only from http and https URLs whose host resolves to public addresses. It refuses private, loopback, link-local, CGNAT, multicast and reserved ranges, IPv4 and IPv6, connects to the address it checked so DNS cannot change it in between, checks every redirect the same way (three at most), and stops a download at `uploads.max_size`. The file then goes through Statamic's own upload: allowed extensions, the container's rules, SVG sanitising, safe filenames and events. An existing file is never replaced.
+- Delete tools are off unless `deletes` is on, and need the delete permission per item.
 - The consent screen cannot be embedded in a frame.
 - Client registration and the endpoint are rate limited.
 - To disconnect one editor, remove the permission from their role or revoke their tokens (`oauth_access_tokens`, `oauth_refresh_tokens`). To disconnect everyone, rotate the Passport keys.
@@ -150,11 +177,9 @@ Links to entries use `statamic://entry::<id>` and keep working when the entry's 
 
 ## Limitations
 
-- Single site: finding and creating content uses the default site. Tools that take an entry id work on that entry in its own site.
-- No file uploads, no deletes, no navigation or term editing.
-- Search loads the entries of the searched collections into memory, which is slow for very large collections.
-- Validation errors inside sets use Statamic's field paths, e.g. `content.2.attrs.values.quote`.
-- Values are normalised by their field type before validation. An integer field sent `"2abc"` stores `2`.
+- Claude cannot upload files attached to the chat, only files the site can download from a URL. Assets cannot be moved or renamed.
+- A content search reads every entry of the searched collections, a chunk at a time. On very large sites it is slow. Listing without a search stops as soon as a page is full. Lists report `has_more` instead of a total.
+- No forms, users or Control Panel pages.
 - The addon configures Laravel Passport for itself: guard, token lifetimes, default scope and consent screen. A site that already uses Passport for its own API will see those settings change.
 - If a site already published Passport's migrations, the addon uses the published copies. They must be Passport 13's.
 

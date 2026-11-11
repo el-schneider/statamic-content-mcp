@@ -4,6 +4,26 @@ All notable changes to `statamic-content-mcp` will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Multi-site: `get_overview` lists the sites the editor may access and where collections, globals and navigations exist. `find_entries`, `create_entry`, `get_global`, `update_global` and the term and navigation tools take a `site`. `get_entry` returns `site`, `origin`, `localizations` and the fields a localization sets itself; writes to a localization stay in it, and non-localizable fields belong to the origin.
+- `localize_entry`, on multi-site installs.
+- `get_asset` with a scaled-down image for the model to look at, `update_asset`, and `upload_asset`, which downloads from a public URL with SSRF protection and Statamic's own upload rules. Config `uploads.max_size`.
+- `get_term`, `create_term`, `update_term`.
+- `get_navigation`, `update_navigation`, `move_entry`.
+- `get_blueprint` for taxonomies, navigations and asset containers.
+- Opt-in `delete_entry`, `delete_term`, `delete_asset` (config `deletes`).
+- `find_assets` takes a `folder`; `list_terms` takes `query`, `limit` and `offset`.
+
+### Changed
+
+- `find_entries`, `find_assets` and `list_terms` return `has_more` instead of `total`, and read entries, files and terms in chunks instead of all at once.
+- Validation errors inside sets, grids, groups and Bard use the paths the client writes (`page_builder.<id>.heading`), with the position for items sent without an id.
+- Integer and float fields reject input such as `"2abc"` instead of storing `2`.
+- `get_global` and `update_global` return what a localized global set resolves to.
+
+## v0.1.0
+
 First release. Editors connect Claude (web, desktop, mobile) to their Statamic site as a custom connector and work on content with their own Control Panel permissions.
 
 ### Added
