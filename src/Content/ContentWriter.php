@@ -9,6 +9,7 @@ use Illuminate\Support\Collection as Values;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Statamic\Assets\Asset;
 use Statamic\Auth\User;
 use Statamic\Contracts\Entries\Entry as EntryContract;
 use Statamic\Contracts\Routing\UrlBuilder;
@@ -201,6 +202,53 @@ final class ContentWriter
         NotSaved::unless($variables->merge(self::written($fields, $preProcessed, $merged, $current, $handles)->all())->save() !== false);
 
         return $variables;
+    }
+
+    /**
+     * Mirrors the CP's AssetsController::update(): blueprint data such as alt text.
+     *
+     * @param  array<array-key, mixed>  $changes
+     */
+    public static function updateAsset(Asset $asset, array $changes): Asset
+    {
+        $fields = $asset->blueprint()->fields();
+        $handles = DataPatch::handles($changes);
+        self::assertKnown($fields, $handles, []);
+
+        $current = Arr::removeNullValues($asset->data()->all());
+        $patched = self::patch($fields, $current, $changes, $handles);
+        $merged = [...$current, ...AgentForm::toStored($fields, $patched, $current)];
+        self::assertReadOnlyUnchanged($fields, Arr::only($merged, $handles), $current, []);
+        $preProcessed = self::preProcess($fields, $merged);
+        self::validate($fields, $merged, $patched, fn () => $preProcessed->validate());
+
+        foreach (self::written($fields, $preProcessed, $merged, $current, $handles) as $handle => $value) {
+            $asset->set($handle, $value);
+        }
+
+        NotSaved::unless($asset->save());
+
+        return $asset;
+    }
+
+    /**
+     * Validated stored-form blueprint data for an asset that is about to be uploaded,
+     * so a failure stops the upload before any file is written.
+     *
+     * @param  array<array-key, mixed>  $data
+     * @return array<array-key, mixed>
+     */
+    public static function newAssetData(Blueprint $blueprint, array $data): array
+    {
+        $fields = $blueprint->fields();
+        self::assertKnown($fields, array_keys($data), []);
+
+        $stored = AgentForm::toStored($fields, $data, []);
+        self::assertReadOnlyUnchanged($fields, $stored, [], []);
+        $preProcessed = self::preProcess($fields, $stored);
+        self::validate($fields, $stored, $data, fn () => $preProcessed->validate());
+
+        return Arr::removeNullValues(self::processed($preProcessed, $stored)->only(array_keys($data))->all());
     }
 
     /**

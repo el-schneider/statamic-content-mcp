@@ -22,6 +22,7 @@ uses(TestCase::class)->in('Feature');
 // laravel/mcp's TestResponse only offers assertions; tests need the payload too.
 TestResponse::macro('data', fn (): ?array => $this->structuredContent());
 TestResponse::macro('errorText', fn (): string => implode(' ', $this->errors()));
+TestResponse::macro('contentBlocks', fn (): array => $this->response->toArray()['result']['content'] ?? []);
 
 /**
  * A blog (dated, bard with sets) and pages (structured, replicator) collection,

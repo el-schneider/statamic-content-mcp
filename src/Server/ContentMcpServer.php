@@ -9,6 +9,7 @@ use ElSchneider\ContentMcp\Tools\CreateEntry;
 use ElSchneider\ContentMcp\Tools\CreateTerm;
 use ElSchneider\ContentMcp\Tools\FindAssets;
 use ElSchneider\ContentMcp\Tools\FindEntries;
+use ElSchneider\ContentMcp\Tools\GetAsset;
 use ElSchneider\ContentMcp\Tools\GetBlueprint;
 use ElSchneider\ContentMcp\Tools\GetEntry;
 use ElSchneider\ContentMcp\Tools\GetGlobal;
@@ -18,9 +19,11 @@ use ElSchneider\ContentMcp\Tools\ListTerms;
 use ElSchneider\ContentMcp\Tools\LocalizeEntry;
 use ElSchneider\ContentMcp\Tools\PublishEntry;
 use ElSchneider\ContentMcp\Tools\UnpublishEntry;
+use ElSchneider\ContentMcp\Tools\UpdateAsset;
 use ElSchneider\ContentMcp\Tools\UpdateEntry;
 use ElSchneider\ContentMcp\Tools\UpdateGlobal;
 use ElSchneider\ContentMcp\Tools\UpdateTerm;
+use ElSchneider\ContentMcp\Tools\UploadAsset;
 use Laravel\Mcp\Server;
 
 final class ContentMcpServer extends Server
@@ -44,6 +47,7 @@ final class ContentMcpServer extends Server
         GetEntry::class,
         GetGlobal::class,
         FindAssets::class,
+        GetAsset::class,
         ListTerms::class,
         GetTerm::class,
         CreateEntry::class,
@@ -54,6 +58,8 @@ final class ContentMcpServer extends Server
         LocalizeEntry::class,
         CreateTerm::class,
         UpdateTerm::class,
+        UpdateAsset::class,
+        UploadAsset::class,
     ];
 
     protected function boot(): void

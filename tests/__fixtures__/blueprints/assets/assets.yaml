@@ -1,0 +1,13 @@
+title: Asset
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: alt
+            field:
+              type: text
+          - handle: credit
+            field:
+              type: text
+              validate:
+                - max:20

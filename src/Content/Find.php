@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace ElSchneider\ContentMcp\Content;
 
 use Illuminate\Support\Facades\Gate;
+use Statamic\Assets\Asset;
 use Statamic\Assets\AssetContainer;
 use Statamic\Entries\Collection;
 use Statamic\Entries\Entry;
+use Statamic\Facades\Asset as Assets;
 use Statamic\Facades\AssetContainer as AssetContainers;
 use Statamic\Facades\Collection as Collections;
 use Statamic\Facades\Entry as Entries;
@@ -59,6 +61,17 @@ final class Find
         }
 
         return $nav;
+    }
+
+    public static function asset(string $id): Asset
+    {
+        $asset = Assets::find($id);
+
+        if (! $asset instanceof Asset || Gate::denies('view', $asset)) {
+            throw new NotFound("Asset [{$id}] not found.");
+        }
+
+        return $asset;
     }
 
     public static function assetContainer(string $handle): AssetContainer

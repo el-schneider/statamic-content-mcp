@@ -45,4 +45,19 @@ return [
 
     'redirect_domains' => ['https://claude.ai', 'https://claude.com'],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Uploads
+    |--------------------------------------------------------------------------
+    |
+    | `upload_asset` downloads files from public URLs. `max_size` is the largest
+    | file in bytes it accepts; the download stops as soon as it is exceeded.
+    | The container's own validation rules apply on top.
+    |
+    */
+
+    'uploads' => [
+        'max_size' => 10 * 1024 * 1024,
+    ],
+
 ];

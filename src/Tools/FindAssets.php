@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp\Tools;
 
-use ElSchneider\ContentMcp\Content\NotFound;
+use ElSchneider\ContentMcp\Content\AssetPresenter;
+use ElSchneider\ContentMcp\Content\Find;
 use Generator;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;
@@ -47,16 +48,9 @@ final class FindAssets extends ContentTool
             'offset' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $containers = AssetContainer::all()->filter(fn (Container $container): bool => Gate::allows('view', $container));
-
-        if ($request->filled('container')) {
-            $handle = $request->string('container')->toString();
-            $containers = $containers->filter(fn (Container $container): bool => $container->handle() === $handle);
-
-            if ($containers->isEmpty()) {
-                throw new NotFound("Asset container [{$handle}] not found.");
-            }
-        }
+        $containers = $request->filled('container')
+            ? collect([Find::assetContainer($request->string('container')->toString())])
+            : AssetContainer::all()->filter(fn (Container $container): bool => Gate::allows('view', $container));
 
         $folder = $request->filled('folder') ? trim($request->string('folder')->toString(), '/') : null;
         $like = $request->filled('query') ? '%'.addcslashes($request->string('query')->toString(), '%_\\').'%' : null;
@@ -73,17 +67,7 @@ final class FindAssets extends ContentTool
             'has_more' => $page->count() > $limit,
             'assets' => $page
                 ->take($limit)
-                ->map(fn (Asset $asset): array => [
-                    'id' => $asset->id(),
-                    'container' => $asset->containerHandle(),
-                    'path' => $asset->path(),
-                    'url' => $asset->absoluteUrl(),
-                    'alt' => $asset->get('alt'),
-                    'mime_type' => $asset->mimeType(),
-                    'size' => $asset->size(),
-                    'width' => $asset->isImage() ? $asset->width() : null,
-                    'height' => $asset->isImage() ? $asset->height() : null,
-                ])
+                ->map(AssetPresenter::summary(...))
                 ->values()->all(),
         ]);
     }
