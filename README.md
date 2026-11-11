@@ -168,7 +168,7 @@ Validation errors use the same paths, with the `id` of a set or row, or its posi
 - Access tokens last one hour. Refresh tokens last 90 days and rotate on every use.
 - Each request checks the token's signature, expiry, revocation, scope and client.
 - Only clients that redirect to `redirect_domains` can register.
-- `upload_asset` downloads only from http and https URLs whose host resolves to public addresses. It refuses private, loopback, link-local, CGNAT, multicast and reserved ranges, IPv4 and IPv6, connects to the address it checked so DNS cannot change it in between, checks every redirect the same way (three at most), and stops a download at `uploads.max_size`. The file then goes through Statamic's own upload: allowed extensions, the container's rules, SVG sanitising, safe filenames and events. An existing file is never replaced.
+- `upload_asset` downloads only from http and https URLs whose host is a domain name or a standard IP address and resolves to public addresses. It refuses private, loopback, link-local, CGNAT, multicast and reserved ranges, IPv4 and IPv6, connects to the address it checked so DNS cannot change it in between, checks every redirect the same way (three at most), and stops a download at `uploads.max_size`. The file then goes through Statamic's own upload: allowed extensions, the container's rules, SVG sanitising, safe filenames and events. An existing file is never replaced.
 - Delete tools are off unless `deletes` is on, and need the delete permission per item.
 - The consent screen cannot be embedded in a frame.
 - Client registration and the endpoint are rate limited.

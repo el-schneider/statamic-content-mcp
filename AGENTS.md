@@ -35,6 +35,12 @@ uv run scripts/oauth-e2e.py https://site.example [email password]   # walks the 
 - In tests the Stache item cache hands out the same object, so a renamed term is still found under its old key. Assert on the files.
 - `Asset::delete()` returns false when vetoed, although its docblock says `$this`.
 - `statamic.assets.lowercase` is on by default: uploaded filenames are lowercased.
+- The CP authorizes saving with `store`/`update`, its forms with `create`/`edit`. Write tools check the saving ability (and `create` too, for new items).
+- curl reads numeric host spellings (`2130706433`, `0x7f.1`) as IP addresses and ignores `CURLOPT_RESOLVE` for them. `RemoteFile` accepts only standard IP literals and plain ASCII domain names.
+- laravel/mcp pages `tools/list` at 15 by default; `ContentMcpServer::$defaultPaginationLength` keeps all tools in one page.
+- An empty PHP array serialises as `[]`; maps in responses go through `AgentForm::object()`.
+- Pest reports warnings that `@` suppresses.
+- A killed test run (e.g. output piped into `head`) can make the next run fail at random. `TestCase::setUp()` clears the fake Stache directory and RouteCacheTest's route cache, but not everything; rerun before you chase such a failure.
 - Statamic's entry query contract is an empty interface; `whereIn()` on `Entry::query()` needs a phpstan ignore.
 - Pest 5 needs PHP 8.4; `require-dev` allows Pest 4 so CI can test PHP 8.3.
 - Larastan does not resolve real-time facades (`Facades\…`); use `app(Class::class)`.

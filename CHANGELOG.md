@@ -21,6 +21,13 @@ All notable changes to `statamic-content-mcp` will be documented in this file.
 - Validation errors inside sets, grids, groups and Bard use the paths the client writes (`page_builder.<id>.heading`), with the position for items sent without an id.
 - Integer and float fields reject input such as `"2abc"` instead of storing `2`.
 - `get_global` and `update_global` return what a localized global set resolves to.
+- `tools/list` returns every tool in one page.
+
+### Fixed
+
+- `create_entry` and `update_entry` check the abilities the Control Panel checks when it saves (`store`, `update`), so a site policy that denies only those applies.
+- An update that changes nothing no longer rewrites the file or fires save events.
+- An empty `data` map is sent as a JSON object, not as an empty list.
 
 ## v0.1.0
 
