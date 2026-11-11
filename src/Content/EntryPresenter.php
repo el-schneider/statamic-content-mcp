@@ -41,7 +41,7 @@ final class EntryPresenter
             'collection' => $entry->collectionHandle(),
             ...(Site::multiEnabled() ? [
                 'site' => $entry->locale(),
-                'origin' => $entry->origin()?->id(),
+                'origin' => self::visibleId($entry->origin()),
                 'localizations' => self::localizations($entry),
             ] : []),
             'blueprint' => $entry->blueprint()->handle(),
@@ -55,6 +55,14 @@ final class EntryPresenter
             'edit_url' => $entry->editUrl(),
             'preview_url' => $withPreview ? self::previewUrl($entry) : null,
         ];
+    }
+
+    /**
+     * An entry's id, or null when the user may not view it.
+     */
+    private static function visibleId(mixed $entry): ?string
+    {
+        return $entry instanceof Entry && Gate::allows('view', $entry) ? $entry->id() : null;
     }
 
     /**

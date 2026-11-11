@@ -12,6 +12,7 @@ use ElSchneider\ContentMcp\Tools\ListTerms;
 use ElSchneider\ContentMcp\Tools\LocalizeEntry;
 use ElSchneider\ContentMcp\Tools\UpdateEntry;
 use ElSchneider\ContentMcp\Tools\UpdateGlobal;
+use Illuminate\Support\Facades\Gate;
 use Statamic\Entries\Entry;
 use Statamic\Facades\Collection;
 use Statamic\Facades\Entry as Entries;
@@ -188,6 +189,25 @@ it('creates a localization the way the CP does, once', function () {
         ->and($data['localizations'])->toBe(['default' => $english->id(), 'de' => $data['id']])
         ->and($again)->toContain("already exists in [de]: [{$data['id']}]")
         ->and($forbidden)->toBe('Site [fr] not found.');
+});
+
+it('does not reveal the ids of localizations a site policy hides', function () {
+    // Regression: `origin` and localize_entry's "already exists" answer named entries the editor may not view.
+    Gate::policy(Entry::class, Tests\Fixtures\HideSecretEntriesPolicy::class);
+    $secret = Entries::make()->collection('events')->locale('default')->slug('secret')->data(['title' => 'Secret']);
+    $secret->save();
+    $german = $secret->makeLocalization('de')->slug('geheim');
+    $german->save();
+    $public = Entries::make()->collection('events')->locale('default')->slug('public')->data(['title' => 'Public']);
+    $public->save();
+    $public->makeLocalization('de')->slug('secret')->save();
+
+    $meta = tool($this->editor, GetEntry::class, ['id' => $german->id()])->assertHasNoErrors()->data();
+    $exists = tool($this->editor, LocalizeEntry::class, ['id' => $public->id(), 'site' => 'de'])->errorText();
+
+    expect($meta['origin'])->toBeNull()
+        ->and($meta['localizations'])->toBe(['de' => $german->id()])
+        ->and($exists)->toBe('The entry already exists in [de].');
 });
 
 it('registers localize_entry only on multi-site installs', function () {

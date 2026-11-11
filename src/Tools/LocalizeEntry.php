@@ -59,7 +59,8 @@ final class LocalizeEntry extends ContentTool
         $existing = $entry->in($site->handle());
 
         if ($existing instanceof Entry) {
-            return Response::error("The entry already exists in [{$site->handle()}]: [{$existing->id()}].");
+            // Its id only if the editor may view it.
+            return Response::error("The entry already exists in [{$site->handle()}]".(Gate::allows('view', $existing) ? ": [{$existing->id()}]." : '.'));
         }
 
         $localization = $entry->makeLocalization($site->handle());
