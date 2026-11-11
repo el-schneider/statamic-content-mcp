@@ -19,7 +19,7 @@ use Statamic\Taxonomies\LocalizedTerm;
 use Statamic\Taxonomies\Taxonomy as TaxonomyModel;
 
 #[Title('List taxonomy terms')]
-#[Description('Lists the terms of a taxonomy (e.g. tags or categories) with slug and title. Terms fields store term slugs. New terms cannot be created with these tools.')]
+#[Description('Lists the terms of a taxonomy (e.g. tags or categories) with slug and title, ordered by title. `query` matches title or slug. `has_more` tells whether another page follows. Terms fields store term slugs.')]
 #[IsReadOnly]
 final class ListTerms extends ContentTool
 {
@@ -29,12 +29,20 @@ final class ListTerms extends ContentTool
     {
         return [
             'taxonomy' => $schema->string()->description('Taxonomy handle, from get_overview.')->required(),
+            'query' => $schema->string()->description('Text to match in the title or slug.'),
+            'limit' => $schema->integer()->min(1)->max(500)->default(100),
+            'offset' => $schema->integer()->min(0)->default(0),
         ];
     }
 
     protected function respond(Request $request): ResponseFactory
     {
-        $request->validate(['taxonomy' => ['required', 'string']]);
+        $request->validate([
+            'taxonomy' => ['required', 'string'],
+            'query' => ['nullable', 'string'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'offset' => ['nullable', 'integer', 'min:0'],
+        ]);
 
         $handle = $request->string('taxonomy')->toString();
         $taxonomy = Taxonomy::findByHandle($handle);
@@ -43,14 +51,27 @@ final class ListTerms extends ContentTool
             throw new NotFound("Taxonomy [{$handle}] not found.");
         }
 
+        $query = $taxonomy->queryTerms()->where('site', Site::default()->handle())->orderBy('title');
+
+        if ($request->filled('query')) {
+            $like = '%'.addcslashes($request->string('query')->toString(), '%_\\').'%';
+            $query->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('slug', 'like', $like));
+        }
+
+        $limit = $request->integer('limit', 100);
+
+        // The policy needs the term, so terms are loaded in chunks until the page and one more are found.
+        $page = $query->lazy(200)
+            ->filter(fn (LocalizedTerm $term): bool => Gate::allows('view', $term))
+            ->skip($request->integer('offset'))
+            ->take($limit + 1)
+            ->map(fn (LocalizedTerm $term): array => ['slug' => $term->slug(), 'title' => $term->title()])
+            ->values()
+            ->all();
+
         return Response::structured([
-            'terms' => $taxonomy->queryTerms()
-                ->where('site', Site::default()->handle())
-                ->orderBy('title')
-                ->get()
-                ->filter(fn (LocalizedTerm $term): bool => Gate::allows('view', $term))
-                ->map(fn (LocalizedTerm $term): array => ['slug' => $term->slug(), 'title' => $term->title()])
-                ->values()->all(),
+            'terms' => array_slice($page, 0, $limit),
+            'has_more' => count($page) > $limit,
         ]);
     }
 }

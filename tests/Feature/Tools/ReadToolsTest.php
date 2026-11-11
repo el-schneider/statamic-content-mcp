@@ -83,14 +83,14 @@ it('reports a collection the editor may not view exactly like a missing one', fu
         ->and($missing)->toBe('Collection [nope] not found.');
 });
 
-it('lists a dated collection newest first with summaries and a total', function () {
+it('lists a dated collection newest first with summaries', function () {
     $old = entry('blog', ['title' => 'Old']);
     $new = entry('blog', ['title' => 'New'])->date('2025-03-01');
     $new->save();
 
     $data = tool(editor(['access content mcp', 'view blog entries']), FindEntries::class, ['collection' => 'blog'])->data();
 
-    expect($data['total'])->toBe(2)
+    expect($data['has_more'])->toBeFalse()
         ->and(collect($data['entries'])->pluck('id')->all())->toBe([$new->id(), $old->id()])
         ->and($data['entries'][0])->toMatchArray([
             'collection' => 'blog',
@@ -119,11 +119,13 @@ it('filters by status and pages with limit and offset', function () {
     entry('blog', ['title' => 'Live']);
     $editor = editor(['access content mcp', 'view blog entries']);
 
-    $drafts = tool($editor, FindEntries::class, ['collection' => 'blog', 'status' => 'draft', 'limit' => 1, 'offset' => 1])->data();
+    $first = tool($editor, FindEntries::class, ['collection' => 'blog', 'status' => 'draft', 'limit' => 1])->data();
+    $second = tool($editor, FindEntries::class, ['collection' => 'blog', 'status' => 'draft', 'limit' => 1, 'offset' => 1])->data();
 
-    expect($drafts['total'])->toBe(2)
-        ->and($drafts['entries'])->toHaveCount(1)
-        ->and($drafts['entries'][0]['status'])->toBe('draft');
+    expect($first['entries'][0]['title'])->toBe('Draft one')
+        ->and($first['has_more'])->toBeTrue()
+        ->and($second['entries'][0]['title'])->toBe('Draft two')
+        ->and($second['has_more'])->toBeFalse();
 });
 
 it('hides entries a site policy denies, in lists and by id', function () {
@@ -137,7 +139,7 @@ it('hides entries a site policy denies, in lists and by id', function () {
     $searched = tool($editor, FindEntries::class, ['query' => 'secret'])->data();
 
     expect(collect($listed['entries'])->pluck('title')->all())->toBe(['Public'])
-        ->and($searched['total'])->toBe(0);
+        ->and($searched['entries'])->toBe([]);
     tool($editor, GetEntry::class, ['id' => $secret->id()])->assertHasErrors(["Entry [{$secret->id()}] not found."]);
 });
 
@@ -183,7 +185,7 @@ it('finds assets by filename or alt text in viewable containers', function () {
 
     $data = tool(editor(['access content mcp', 'view assets assets']), FindAssets::class, ['query' => 'hero'])->data();
 
-    expect($data['total'])->toBe(2)
+    expect($data['has_more'])->toBeFalse()
         ->and($data['assets'][0])->toMatchArray([
             'id' => 'assets::images/hero.jpg',
             'container' => 'assets',
@@ -198,15 +200,49 @@ it('finds assets by filename or alt text in viewable containers', function () {
         ->assertHasErrors(['Asset container [private] not found.']);
 });
 
+it('finds assets in a folder and its subfolders, one page at a time', function () {
+    Storage::fake('assets');
+    AssetContainer::make('assets')->title('Assets')->disk('assets')->save();
+    foreach (['logo.png', 'images/a.jpg', 'images/b.jpg', 'images/team/c.jpg', 'imagesque/d.jpg'] as $path) {
+        Storage::disk('assets')->put($path, 'x');
+    }
+    $editor = editor(['access content mcp', 'view assets assets']);
+
+    $first = tool($editor, FindAssets::class, ['folder' => 'images', 'limit' => 2])->data();
+    $rest = tool($editor, FindAssets::class, ['folder' => 'images/', 'limit' => 2, 'offset' => 2])->data();
+
+    expect(collect($first['assets'])->pluck('path')->all())->toBe(['images/a.jpg', 'images/b.jpg'])
+        ->and($first['has_more'])->toBeTrue()
+        ->and(collect($rest['assets'])->pluck('path')->all())->toBe(['images/team/c.jpg'])
+        ->and($rest['has_more'])->toBeFalse();
+});
+
 it('lists the terms of a viewable taxonomy', function () {
     Term::make('garden')->taxonomy('tags')->data(['title' => 'Garden'])->save();
     Term::make('apple')->taxonomy('tags')->data(['title' => 'Apple'])->save();
 
     tool(editor(['access content mcp', 'view tags terms']), ListTerms::class, ['taxonomy' => 'tags'])
-        ->assertStructuredContent(['terms' => [['slug' => 'apple', 'title' => 'Apple'], ['slug' => 'garden', 'title' => 'Garden']]]);
+        ->assertStructuredContent(['terms' => [['slug' => 'apple', 'title' => 'Apple'], ['slug' => 'garden', 'title' => 'Garden']], 'has_more' => false]);
 
     tool(editor(['access content mcp'], 'other@example.com'), ListTerms::class, ['taxonomy' => 'tags'])
         ->assertHasErrors(['Taxonomy [tags] not found.']);
+});
+
+it('searches terms by title or slug, one page at a time', function () {
+    Term::make('garden')->taxonomy('tags')->data(['title' => 'Garden'])->save();
+    Term::make('apple')->taxonomy('tags')->data(['title' => 'Apple'])->save();
+    Term::make('gardening-tips')->taxonomy('tags')->data(['title' => 'Tips'])->save();
+    Term::make('100-percent')->taxonomy('tags')->data(['title' => 'Full'])->save();
+    $editor = editor(['access content mcp', 'view tags terms']);
+
+    $first = tool($editor, ListTerms::class, ['taxonomy' => 'tags', 'query' => 'GARDEN', 'limit' => 1])->data();
+    $rest = tool($editor, ListTerms::class, ['taxonomy' => 'tags', 'query' => 'garden', 'limit' => 1, 'offset' => 1])->data();
+    // `%` is matched literally, not as a wildcard.
+    $literal = tool($editor, ListTerms::class, ['taxonomy' => 'tags', 'query' => '%'])->data();
+
+    expect($first)->toBe(['terms' => [['slug' => 'garden', 'title' => 'Garden']], 'has_more' => true])
+        ->and($rest)->toBe(['terms' => [['slug' => 'gardening-tips', 'title' => 'Tips']], 'has_more' => false])
+        ->and($literal['terms'])->toBe([]);
 });
 
 it('only lists the collections a user may view', function () {
