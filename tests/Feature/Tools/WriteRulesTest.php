@@ -162,6 +162,46 @@ it('rejects null for a required nested field even when it has a default', functi
 
     $errors = validationErrors(tool($this->editor, UpdateEntry::class, ['id' => $page->id(), 'data' => ['page_builder.s1.heading' => null]]));
 
-    expect(array_keys($errors))->toBe(['page_builder.0.heading'])
+    expect(array_keys($errors))->toBe(['page_builder.s1.heading'])
         ->and(Entries::find($page->id())->get('page_builder')[0]['heading'])->toBe('H');
+});
+
+it('keys errors inside sets by the paths the client writes', function (string $collection, array $stored, array $data, string $path) {
+    // Regression: errors came back as Statamic's stored-form paths (`content.2.attrs.values.quote`),
+    // which the client cannot write back.
+    $entry = entry($collection, ['title' => 'T', ...$stored]);
+
+    $errors = validationErrors(tool($this->editor, UpdateEntry::class, ['id' => $entry->id(), 'data' => $data]));
+
+    expect(array_keys($errors))->toBe([$path]);
+})->with([
+    'replicator set by id' => ['pages', ['page_builder' => [['id' => 's1', 'type' => 'hero', 'heading' => 'H']]], ['page_builder' => [['id' => 's1', 'type' => 'hero', 'heading' => '']]], 'page_builder.s1.heading'],
+    'new replicator set by index' => ['pages', ['page_builder' => [['id' => 's1', 'type' => 'hero', 'heading' => 'H']]], ['page_builder' => [['id' => 's1', 'type' => 'hero', 'heading' => 'H'], ['type' => 'hero', 'heading' => '']]], 'page_builder.1.heading'],
+    'Bard set by id' => ['blog', ['content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'a']]], ['type' => 'set', 'attrs' => ['id' => 'q1', 'values' => ['type' => 'quote', 'quote' => 'Q']]]]], ['content.q1.quote' => ''], 'content.q1.quote'],
+    // Two text nodes before the set: its stored index is 2, its block index 1.
+    'new Bard set by block index' => ['blog', [], ['content' => [['type' => 'text', 'text' => '<p>a</p><p>b</p>'], ['type' => 'quote', 'quote' => '']]], 'content.1.quote'],
+]);
+
+it('rejects numeric input that would lose characters when cast', function (array $data, string $path) {
+    // Regression: Integer::preProcess() casts before validation, so "2abc" was stored as 2.
+    $page = entry('pages', ['title' => 'P', 'page_builder' => [['id' => 's1', 'type' => 'hero', 'heading' => 'H', 'position' => 1]]]);
+    $post = entry('blog', ['title' => 'B', 'rating' => 3]);
+
+    $errors = validationErrors(tool($this->editor, UpdateEntry::class, ['id' => isset($data['rating']) ? $post->id() : $page->id(), 'data' => $data]));
+
+    expect(array_keys($errors))->toBe([$path])
+        ->and(Entries::find($post->id())->get('rating'))->toBe(3)
+        ->and(Entries::find($page->id())->get('page_builder')[0]['position'])->toBe(1);
+})->with([
+    'trailing letters' => [['rating' => '2abc'], 'rating'],
+    'fraction for an integer' => [['rating' => 2.5], 'rating'],
+    'nested in a set' => [['page_builder.s1.position' => '1x'], 'page_builder.s1.position'],
+]);
+
+it('accepts numeric strings for numeric fields', function () {
+    $post = entry('blog', ['title' => 'B']);
+
+    tool($this->editor, UpdateEntry::class, ['id' => $post->id(), 'data' => ['rating' => '4']])->assertHasNoErrors();
+
+    expect(Entries::find($post->id())->get('rating'))->toBe(4);
 });

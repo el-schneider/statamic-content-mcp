@@ -68,7 +68,7 @@ it('describes replicator, group and global blueprints recursively', function () 
 
     expect(array_keys($page['page_builder']['sets']))->toBe(['hero', 'rich_text'])
         ->and($page['page_builder']['sets']['rich_text']['fields'][0])->toMatchArray(['handle' => 'text', 'format' => 'html'])
-        ->and($page['page_builder']['sets']['hero']['fields'][2])->toMatchArray(['container' => 'assets', 'max_files' => 1, 'value' => 'One asset path, relative to the container.'])
+        ->and(collect($page['page_builder']['sets']['hero']['fields'])->firstWhere('handle', 'image'))->toMatchArray(['container' => 'assets', 'max_files' => 1, 'value' => 'One asset path, relative to the container.'])
         ->and($page['settings']['fields'][0]['options'])->toBe(['light' => 'Light', 'dark' => 'Dark'])
         ->and(collect($footer['links']['fields'])->pluck('handle')->all())->toBe(['label', 'url']);
 });

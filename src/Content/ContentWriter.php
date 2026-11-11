@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp\Content;
 
+use Closure;
 use Illuminate\Support\Collection as Values;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -59,10 +60,10 @@ final class ContentWriter
 
         $preProcessed = self::preProcess($fields, $stored);
 
-        $preProcessed->validator()
+        self::validate($fields, $stored, $data, fn () => $preProcessed->validator()
             ->withRules(Entries::createRules($collection, $site))
             ->withReplacements(['collection' => $collection->handle(), 'site' => $site->handle()])
-            ->validate();
+            ->validate());
 
         $values = self::processed($preProcessed, $stored)->except(['slug', 'blueprint', 'published']);
 
@@ -132,14 +133,15 @@ final class ContentWriter
             $current['date'] = mb_substr($entry->date()->setTimezone(config('app.timezone'))->toDateTimeString(), 0, 19);
         }
 
-        $merged = self::merge($fields, $current, $changes, $handles);
+        $patched = self::patch($fields, $current, $changes, $handles);
+        $merged = [...$current, ...AgentForm::toStored($fields, $patched, $current)];
         self::assertReadOnlyUnchanged($fields, Arr::only($merged, $handles), $current, self::lockedHandles($collection, $blueprint));
         $preProcessed = self::preProcess($fields, $merged);
 
-        $preProcessed->validator()
+        self::validate($fields, $merged, $patched, fn () => $preProcessed->validator()
             ->withRules(Entries::updateRules($collection, $entry))
             ->withReplacements(['id' => $entry->id(), 'collection' => $collection->handle(), 'site' => $entry->locale()])
-            ->validate();
+            ->validate());
 
         $values = self::written($fields, $preProcessed, $merged, $current, $handles);
 
@@ -177,10 +179,11 @@ final class ContentWriter
         self::assertKnown($fields, $handles, entry: false);
 
         $current = Arr::removeNullValues($variables->data()->all());
-        $merged = self::merge($fields, $current, $changes, $handles);
+        $patched = self::patch($fields, $current, $changes, $handles);
+        $merged = [...$current, ...AgentForm::toStored($fields, $patched, $current)];
         self::assertReadOnlyUnchanged($fields, Arr::only($merged, $handles), $current, []);
         $preProcessed = self::preProcess($fields, $merged);
-        $preProcessed->validate();
+        self::validate($fields, $merged, $patched, fn () => $preProcessed->validate());
 
         NotSaved::unless($variables->merge(self::written($fields, $preProcessed, $merged, $current, $handles)->all())->save() !== false);
 
@@ -188,18 +191,47 @@ final class ContentWriter
     }
 
     /**
-     * Applies the changes in agent form and converts the touched fields back.
+     * The touched fields in agent form, with the changes applied.
      *
      * @param  array<array-key, mixed>  $current
      * @param  array<array-key, mixed>  $changes
      * @param  list<string>  $handles
      * @return array<array-key, mixed>
      */
-    private static function merge(Fields $fields, array $current, array $changes, array $handles): array
+    private static function patch(Fields $fields, array $current, array $changes, array $handles): array
     {
-        $patched = DataPatch::apply(AgentForm::fromStored($fields, Arr::only($current, $handles)), $changes);
+        return DataPatch::apply(AgentForm::fromStored($fields, Arr::only($current, $handles)), $changes);
+    }
 
-        return [...$current, ...AgentForm::toStored($fields, $patched, $current)];
+    /**
+     * Runs the CP's validation, plus the check for numbers preProcess() would cast
+     * with loss, and keys the errors by the paths the client writes.
+     *
+     * @param  array<array-key, mixed>  $stored  the values to validate, in stored form
+     * @param  array<array-key, mixed>  $agent  the fields the client sent, in agent form
+     * @param  Closure(): mixed  $validate
+     */
+    private static function validate(Fields $fields, array $stored, array $agent, Closure $validate): void
+    {
+        try {
+            $lossy = AgentForm::lossyNumbers($fields, Arr::only($stored, array_keys($agent)));
+
+            if ($lossy !== []) {
+                throw ValidationException::withMessages($lossy);
+            }
+
+            $validate();
+        } catch (ValidationException $e) {
+            $handles = array_map(fn (int|string $path): string => explode('.', (string) $path)[0], array_keys($e->errors()));
+            $agent = [...AgentForm::fromStored($fields, Arr::only(Arr::except($stored, array_keys($agent)), $handles)), ...$agent];
+            $errors = [];
+
+            foreach ($e->errors() as $path => $messages) {
+                $errors[AgentForm::agentPath($fields, (string) $path, $stored, $agent)] = $messages;
+            }
+
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**

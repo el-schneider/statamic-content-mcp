@@ -23,6 +23,9 @@ tabs:
                             default: Untitled
                             validate:
                               - required
+                        - handle: position
+                          field:
+                            type: integer
                         - handle: badge
                           field:
                             type: text

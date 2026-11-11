@@ -201,6 +201,66 @@ final class AgentForm
     }
 
     /**
+     * Translates a validation error key from Statamic's stored-form path
+     * (`content.2.attrs.values.quote`, `page_builder.0.heading`) into the path
+     * the client writes: set and row ids, or for items the client sent without
+     * an id, their index in the client's list.
+     *
+     * @param  array<array-key, mixed>  $stored  the values that were validated
+     * @param  array<array-key, mixed>  $agent  the same values as the client sent them
+     */
+    public static function agentPath(Fields $fields, string $path, array $stored, array $agent): string
+    {
+        $segments = explode('.', $path);
+
+        return implode('.', self::agentSegments($fields, array_shift($segments), $segments, $stored, $agent));
+    }
+
+    /**
+     * Stored-form paths of integer and float values the fieldtype's preProcess()
+     * would cast with loss ("2abc" → 2, 2.5 → 2). Validation would only see the cast value.
+     *
+     * @param  array<array-key, mixed>  $values
+     * @return array<string, list<string>>
+     */
+    public static function lossyNumbers(Fields $fields, array $values, string $prefix = ''): array
+    {
+        $errors = [];
+
+        foreach ($fields->all() as $handle => $field) {
+            $value = $values[$handle] ?? null;
+            $path = $prefix.$handle;
+
+            if ($value === null) {
+                continue;
+            }
+
+            $fieldtype = $field->fieldtype();
+            $attribute = ['attribute' => $field->display()];
+
+            if ($field->type() === 'integer' && filter_var($value, FILTER_VALIDATE_INT) === false) {
+                $errors[$path] = [__('validation.integer', $attribute)];
+            } elseif (in_array($field->type(), ['float', 'range'], true) && ! is_numeric($value)) {
+                $errors[$path] = [__('validation.numeric', $attribute)];
+            } elseif (is_array($value) && $fieldtype instanceof Group) {
+                $errors = [...$errors, ...self::lossyNumbers($fieldtype->fields(), $value, "{$path}.")];
+            } elseif (is_array($value) && ($fieldtype instanceof Grid || $fieldtype instanceof Replicator)) {
+                foreach ($value as $index => $row) {
+                    $rowValues = $fieldtype instanceof Bard ? ($row['attrs']['values'] ?? null) : $row;
+                    $rowFields = is_array($rowValues) ? self::rowFields($fieldtype, $rowValues) : null;
+
+                    if ($rowFields !== null) {
+                        $rowPrefix = $fieldtype instanceof Bard ? "{$path}.{$index}.attrs.values." : "{$path}.{$index}.";
+                        $errors = [...$errors, ...self::lossyNumbers($rowFields, $rowValues, $rowPrefix)];
+                    }
+                }
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
      * @param  callable(string): Fields  $fields
      * @param  array<array-key, mixed>  $rows
      * @param  array<array-key, mixed>  $originals
@@ -226,6 +286,72 @@ final class AgentForm
         }
 
         return $paths;
+    }
+
+    /**
+     * @param  list<string>  $segments  the path after $handle
+     * @return list<string>
+     */
+    private static function agentSegments(Fields $fields, string $handle, array $segments, mixed $stored, mixed $agent): array
+    {
+        $field = $fields->get($handle);
+
+        if (! $field instanceof Field || $segments === []) {
+            return [$handle, ...$segments];
+        }
+
+        $fieldtype = $field->fieldtype();
+        $stored = is_array($stored) ? ($stored[$handle] ?? null) : null;
+        $agent = is_array($agent) ? ($agent[$handle] ?? null) : null;
+
+        if ($fieldtype instanceof Group) {
+            return [$handle, ...self::agentSegments($fieldtype->fields(), array_shift($segments), $segments, $stored, $agent)];
+        }
+
+        if (! ($fieldtype instanceof Grid || $fieldtype instanceof Replicator) || ! is_array($stored) || ! ctype_digit($segments[0])) {
+            return [$handle, ...$segments];
+        }
+
+        $index = (int) array_shift($segments);
+        $row = array_values($stored)[$index] ?? null;
+        $blocks = is_array($agent) ? $agent : [];
+
+        if ($fieldtype instanceof Bard) {
+            // The k-th set node is the k-th set block; text blocks may span several nodes.
+            $isSet = fn (mixed $node): bool => is_array($node) && ($node['type'] ?? null) === 'set';
+            $k = count(array_filter(array_slice(array_values($stored), 0, $index), $isSet));
+            $agentIndex = array_keys(array_filter($blocks, fn (mixed $block): bool => is_array($block) && ($block['type'] ?? null) !== 'text'))[$k] ?? $index;
+            $row = $row['attrs']['values'] ?? null;
+            $segments = array_slice($segments, 2);
+        } else {
+            $agentIndex = $index;
+        }
+
+        $agentRow = $blocks[$agentIndex] ?? null;
+        $id = is_array($agentRow) && is_string($agentRow[self::idKey()] ?? null) ? $agentRow[self::idKey()] : (string) $agentIndex;
+        $rowFields = is_array($row) ? self::rowFields($fieldtype, $row) : null;
+
+        if ($rowFields === null || $segments === []) {
+            return [$handle, $id, ...$segments];
+        }
+
+        return [$handle, $id, ...self::agentSegments($rowFields, array_shift($segments), $segments, $row, $agentRow)];
+    }
+
+    /**
+     * The fields of a grid row, or of a replicator or Bard set by its type.
+     *
+     * @param  array<array-key, mixed>  $values
+     */
+    private static function rowFields(Grid|Replicator $fieldtype, array $values): ?Fields
+    {
+        if ($fieldtype instanceof Grid) {
+            return $fieldtype->fields();
+        }
+
+        $type = $values['type'] ?? null;
+
+        return is_string($type) && $fieldtype->flattenedSetsConfig()->has($type) ? $fieldtype->fields($type) : null;
     }
 
     private static function valueFromStored(Field $field, mixed $value): mixed
