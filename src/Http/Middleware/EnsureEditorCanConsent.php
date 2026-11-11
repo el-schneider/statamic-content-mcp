@@ -22,16 +22,41 @@ final class EnsureEditorCanConsent
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $guard = Auth::guard(config()->string('statamic.users.guards.cp'));
-
-        // Passport would throw an AuthenticationException, which Laravel turns into a
-        // redirect to route('login'). Statamic sites have no such route; the CP login
-        // sends the editor back here through redirect()->intended().
-        if (! $user = $guard->user()) {
-            return redirect()->guest(cp_route('login'));
+        // league/oauth2-server also accepts `plain`, and treats a missing method as plain.
+        if (! $request->filled('code_challenge') || $request->query('code_challenge_method') !== 'S256') {
+            return response()->json([
+                'error' => 'invalid_request',
+                'error_description' => 'PKCE with code_challenge_method S256 is required.',
+            ], 400);
         }
 
-        if (Gate::forUser($user)->denies(ContentMcpServiceProvider::PERMISSION)) {
+        $guard = Auth::guard(config()->string('statamic.users.guards.cp'));
+        $prompts = explode(' ', $request->string('prompt')->toString());
+
+        // With prompt=none Passport answers a guest itself, with login_required.
+        if (! in_array('none', $prompts, true)) {
+            // Passport's own prompt=login handling ends in a redirect to route('login'),
+            // which Statamic sites lack. Same handshake through the CP login instead: log
+            // out once; the `promptedForLogin` flag tells Passport the login has happened.
+            if (in_array('login', $prompts, true) && ! $request->session()->get('promptedForLogin', false)) {
+                $guard->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
+
+            // Passport would throw an AuthenticationException, which Laravel turns into a
+            // redirect to route('login'). The CP login sends the editor back here through
+            // redirect()->intended().
+            if ($guard->guest()) {
+                $request->session()->put('promptedForLogin', true);
+
+                return redirect()->guest(cp_route('login'));
+            }
+        }
+
+        $user = $guard->user();
+
+        if ($user !== null && Gate::forUser($user)->denies(ContentMcpServiceProvider::PERMISSION)) {
             return response()->view('content-mcp::forbidden', ['user' => User::fromUser($user)], 403);
         }
 

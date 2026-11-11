@@ -148,3 +148,32 @@ it('throttles dynamic client registration', function () {
 
     $this->postJson('/oauth/register', ['redirect_uris' => [CLAUDE_CALLBACK]])->assertTooManyRequests();
 });
+
+it('refuses authorization requests without S256 PKCE', function (array $pkce) {
+    // league/oauth2-server also accepts `plain`, and a missing method means plain.
+    $clientId = registerClaude();
+    $query = ['response_type' => 'code', 'client_id' => $clientId, 'redirect_uri' => CLAUDE_CALLBACK, 'state' => 's', ...$pkce];
+
+    $this->get('/oauth/authorize?'.http_build_query($query))
+        ->assertStatus(400)
+        ->assertJsonPath('error', 'invalid_request');
+})->with([
+    'plain' => [['code_challenge' => str_repeat('a', 43), 'code_challenge_method' => 'plain']],
+    'method omitted' => [['code_challenge' => str_repeat('a', 43)]],
+    'no challenge' => [[]],
+]);
+
+it('sends prompt=login through the CP login and on to consent', function () {
+    // Regression: Passport logs the editor out and redirects to route('login'), which Statamic sites lack.
+    $editor = editor(['access content mcp']);
+    $url = authorizeUrl(registerClaude());
+    loginThroughCp($url, $editor)->assertOk();
+
+    loginThroughCp($url.'&prompt=login', $editor)->assertOk()->assertSee('auth_token');
+});
+
+it('answers prompt=none for a guest with login_required instead of a login page', function () {
+    $redirect = (string) $this->get(authorizeUrl(registerClaude()).'&prompt=none')->assertRedirect()->headers->get('Location');
+
+    expect($redirect)->toStartWith(CLAUDE_CALLBACK.'?')->toContain('error=login_required');
+});
