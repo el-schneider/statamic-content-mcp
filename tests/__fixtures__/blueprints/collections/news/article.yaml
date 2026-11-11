@@ -1,0 +1,14 @@
+title: Article
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              validate:
+                - required
+          - handle: author
+            field:
+              type: users
+              max_items: 1

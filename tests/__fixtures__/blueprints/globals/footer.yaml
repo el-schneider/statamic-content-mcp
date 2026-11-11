@@ -1,22 +1,20 @@
 title: Footer
-fields:
-  - handle: copyright_text
-    field:
-      type: text
-      display: Copyright Text
-  - handle: social_links
-    field:
-      type: grid
-      display: Social Links
-      fields:
-        - handle: platform
-          field:
-            type: select
-            display: Platform
-            options:
-              - twitter
-              - facebook
-        - handle: url
-          field:
-            type: text
-            display: URL
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: copyright
+            field:
+              type: text
+              validate:
+                - required
+          - handle: links
+            field:
+              type: grid
+              fields:
+                - handle: label
+                  field:
+                    type: text
+                - handle: url
+                  field:
+                    type: text

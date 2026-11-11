@@ -1,40 +1,46 @@
 title: Post
-fields:
-  - handle: title
-    field:
-      type: text
-      display: Title
-      validate:
-        - required
-  - handle: content
-    field:
-      type: bard
-      display: Content
-      sets:
-        image:
-          display: Image
-          fields:
-            - handle: asset
-              field:
-                type: assets
-                display: Image
-                container: assets
-                max_files: 1
-                validate:
-                  - required
-            - handle: caption
-              field:
-                type: text
-                display: Caption
-  - handle: tags
-    field:
-      type: terms
-      display: Tags
-      taxonomies:
-        - tags
-      create: true
-  - handle: meta_title
-    field:
-      type: text
-      display: Meta Title
-      character_limit: 60
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              validate:
+                - required
+          - handle: intro
+            field:
+              type: bard
+              instructions: One short paragraph.
+          - handle: content
+            field:
+              type: bard
+              sets:
+                media:
+                  sets:
+                    quote:
+                      display: Quote
+                      fields:
+                        - handle: quote
+                          field:
+                            type: textarea
+                            validate:
+                              - required
+                        - handle: cite
+                          field:
+                            type: text
+          - handle: tags
+            field:
+              type: terms
+              taxonomies:
+                - tags
+          - handle: rating
+            field:
+              type: integer
+              validate:
+                - min:1
+                - max:5
+          - handle: legacy_id
+            field:
+              type: text
+              visibility: read_only

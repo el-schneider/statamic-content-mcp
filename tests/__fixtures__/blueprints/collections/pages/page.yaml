@@ -1,28 +1,45 @@
 title: Page
-fields:
-  - handle: title
-    field:
-      type: text
-      display: Title
-      validate:
-        - required
-  - handle: page_builder
-    field:
-      type: replicator
-      display: Page Builder
-      sets:
-        hero:
-          display: Hero
-          fields:
-            - handle: heading
-              field:
-                type: text
-                display: Heading
-                validate:
-                  - required
-            - handle: image
-              field:
-                type: assets
-                display: Image
-                container: assets
-                max_files: 1
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              validate:
+                - required
+          - handle: page_builder
+            field:
+              type: replicator
+              sets:
+                blocks:
+                  sets:
+                    hero:
+                      display: Hero
+                      fields:
+                        - handle: heading
+                          field:
+                            type: text
+                            validate:
+                              - required
+                        - handle: image
+                          field:
+                            type: assets
+                            container: assets
+                            max_files: 1
+                    rich_text:
+                      display: Rich text
+                      fields:
+                        - handle: text
+                          field:
+                            type: bard
+          - handle: settings
+            field:
+              type: group
+              fields:
+                - handle: theme
+                  field:
+                    type: select
+                    options:
+                      light: Light
+                      dark: Dark
