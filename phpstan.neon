@@ -8,3 +8,10 @@ parameters:
         - config
         - routes
         - database
+    ignoreErrors:
+        # Older Statamic 6 documents AddonServiceProvider::$vite as list<string>, although
+        # registerVite() takes the options array there too; later versions document both.
+        -
+            identifier: property.phpDocType
+            path: src/ContentMcpServiceProvider.php
+            reportUnmatched: false
