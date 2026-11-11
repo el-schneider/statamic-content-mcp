@@ -34,6 +34,9 @@ use Laravel\Mcp\Server;
 
 final class ContentMcpServer extends Server
 {
+    // laravel/mcp pages lists at 15; some clients do not follow the cursor, so all tools fit in one page.
+    public int $defaultPaginationLength = 50;
+
     protected string $name = 'Statamic Content';
 
     protected string $instructions = <<<'MARKDOWN'

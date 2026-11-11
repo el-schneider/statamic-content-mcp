@@ -46,6 +46,23 @@ it('connects Claude end to end with a file user and lists the tools', function (
         ->assertJsonPath('result.serverInfo.version', InstalledVersions::getPrettyVersion('el-schneider/statamic-content-mcp'));
 });
 
+it('lists every tool in one tools/list page, deletes and localization included', function () {
+    // Regression: laravel/mcp pages tools/list at 15, and some clients do not follow the cursor.
+    config(['statamic.content-mcp.deletes' => true, 'statamic.system.multisite' => true]);
+    Statamic\Facades\Site::setSites([
+        'default' => ['name' => 'English', 'url' => 'http://localhost/', 'locale' => 'en_US'],
+        'de' => ['name' => 'Deutsch', 'url' => 'http://localhost/de/', 'locale' => 'de_DE'],
+    ]);
+    $tokens = connectClaude(editor(['access content mcp']));
+    $registered = (new ReflectionClass(ElSchneider\ContentMcp\Server\ContentMcpServer::class))->getProperty('tools')->getDefaultValue();
+
+    $result = mcp($tokens['access_token'], 'tools/list')->assertOk()->json('result');
+
+    expect($result)->not->toHaveKey('nextCursor')
+        ->and(collect($result['tools'])->pluck('name')->all())->toContain('delete_entry', 'localize_entry')
+        ->and($result['tools'])->toHaveCount(count($registered));
+});
+
 it('completes the flow for clients that ask for client_secret_post or omit the scope', function () {
     // Regression: some Claude clients register with client_secret_post, and a token
     // without the mcp:use scope would be rejected by the endpoint after a "successful" connect.
