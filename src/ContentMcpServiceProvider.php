@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Server\Registrar;
 use Laravel\Passport\Passport;
+use Statamic\CP\Navigation\Nav as Navigation;
 use Statamic\Facades\Addon;
 use Statamic\Facades\CP\Nav;
 use Statamic\Facades\Permission;
@@ -32,6 +33,22 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
 
     // Our strings live in JSON files, which Statamic's namespaced loader doesn't read.
     protected $translations = false;
+
+    /**
+     * The Content MCP area under Tools; each page shows only to those who may open it.
+     */
+    public static function navigation(Navigation $nav): void
+    {
+        $nav->findOrCreate('Tools', 'Content MCP')
+            ->route('content-mcp.connect')
+            ->icon('ai-chat-spark')
+            ->can(self::PERMISSION)
+            ->children([
+                $nav->item(__('Connect'))->route('content-mcp.connect')->can(self::PERMISSION),
+                $nav->item(__('Connections'))->route('content-mcp.connections')->can(self::MANAGE_PERMISSION),
+                $nav->item(__('Settings'))->route('content-mcp.settings')->can('editSettings', [Addon::get(Settings::PACKAGE)]),
+            ]);
+    }
 
     public function register(): void
     {
@@ -93,17 +110,7 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
             });
         });
 
-        Nav::extend(function ($nav): void {
-            $nav->tools('Content MCP')
-                ->route('content-mcp.connect')
-                ->icon('ai-chat-spark')
-                ->can(self::PERMISSION)
-                ->children([
-                    $nav->item(__('Connect'))->route('content-mcp.connect')->can(self::PERMISSION),
-                    $nav->item(__('Connections'))->route('content-mcp.connections')->can(self::MANAGE_PERMISSION),
-                    $nav->item(__('Settings'))->route('content-mcp.settings')->can('editSettings', [Addon::get(Settings::PACKAGE)]),
-                ]);
-        });
+        Nav::extend(self::navigation(...));
 
         // Built into resources/dist and committed; sites run no frontend build. Registered
         // here, not with $vite, whose docblock in older Statamic versions allows no options.

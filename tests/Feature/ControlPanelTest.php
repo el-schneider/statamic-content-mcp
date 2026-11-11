@@ -152,3 +152,21 @@ it('renders the settings form inside the area, saving through Statamic\'s own se
             ->where('blueprint.tabs.0.sections.0.fields.0.handle', 'instructions')
             ->where('tabs', fn ($tabs) => collect($tabs)->pluck('title')->all() === ['Connect', 'Settings']));
 });
+
+it('lists the area under Tools with the pages each user may open', function () {
+    // AddonTestCase replaces the nav with a mock after the addon extended it; extend a real one.
+    $nav = new Statamic\CP\Navigation\Nav;
+    $nav->extend(ElSchneider\ContentMcp\ContentMcpServiceProvider::navigation(...));
+    Statamic\Facades\CP\Nav::swap($nav);
+    $children = function (StatamicUser $user): ?array {
+        signIn($user);
+        $tools = collect(Statamic\Facades\CP\Nav::build(preferences: false))->firstWhere('display', 'Tools');
+        $item = collect($tools['items'] ?? [])->first(fn ($item) => $item->display() === 'Content MCP');
+
+        return $item?->resolveChildren()->children()?->map->display()->all();
+    };
+
+    expect($children(cpUser([], 'plain@example.com')))->toBeNull()
+        ->and($children(cpUser(['access content mcp'], 'editor@example.com')))->toBe(['Connect'])
+        ->and($children(cpUser(['access content mcp', 'manage content mcp connections', 'edit el-schneider/statamic-content-mcp settings'], 'owner@example.com')))->toBe(['Connect', 'Connections', 'Settings']);
+});
