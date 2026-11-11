@@ -145,7 +145,10 @@ Bard is the exception. A Bard field without sets is an HTML string. A Bard field
 
 ```json
 [
-    { "type": "text", "text": "<p>See our <a href=\"statamic://entry::a1b2\">rooms</a>.</p>" },
+    {
+        "type": "text",
+        "text": "<p>See our <a href=\"statamic://entry::a1b2\">rooms</a>.</p>"
+    },
     { "type": "quote", "id": "lx3k2a", "text": "…", "cite": "…" }
 ]
 ```

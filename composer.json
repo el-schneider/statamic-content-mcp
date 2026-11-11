@@ -63,12 +63,20 @@
         }
     },
     "scripts": {
+        "lint": "vendor/bin/pint",
+        "lint:check": "vendor/bin/pint --test",
+        "types:check": "vendor/bin/phpstan analyse --no-progress --memory-limit=1G",
+        "test": "vendor/bin/pest",
         "check": [
-            "vendor/bin/pint --test",
-            "vendor/bin/phpstan analyse --no-progress --memory-limit=1G",
-            "vendor/bin/pest"
+            "@lint:check",
+            "@types:check",
+            "@test"
         ],
-        "fix": "vendor/bin/pint",
-        "test": "vendor/bin/pest"
+        "ci:check": [
+            "Composer\\Config::disableProcessTimeout",
+            "npm run check",
+            "npm run types:check",
+            "@check"
+        ]
     }
 }

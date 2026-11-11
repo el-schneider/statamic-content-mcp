@@ -28,9 +28,46 @@ jobs:
 
       - run: composer install --no-interaction --prefer-dist
 
-      - run: vendor/bin/pint --test
+      - run: composer lint:check
 
-      - run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+      - run: composer types:check
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      # v2
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      # The build imports @statamic/cms from vendor. Built against the lowest supported
+      # Statamic so the committed build is reproducible and uses nothing newer.
+      - run: composer update --no-interaction --prefer-dist --prefer-lowest
+
+      # v7.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm audit --audit-level=moderate
+
+      - run: npm run check
+
+      - run: npm run types:check
+
+      - run: npm run build
+
+      - name: The committed build is up to date
+        run: git diff --exit-code resources/dist
 
   tests:
     name: Tests – PHP ${{ matrix.php }} / ${{ matrix.dependencies }}
@@ -56,4 +93,4 @@ jobs:
 
       - run: composer audit --no-interaction
 
-      - run: vendor/bin/pest
+      - run: composer test

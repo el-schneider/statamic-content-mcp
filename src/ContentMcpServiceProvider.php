@@ -105,6 +105,10 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
                 ]);
         });
 
+        // Built into resources/dist and committed; sites run no frontend build. Registered
+        // here, not with $vite, whose docblock in older Statamic versions allows no options.
+        $this->registerVite(['input' => ['resources/js/cp.ts'], 'publicDirectory' => 'resources/dist']);
+
         // A closure, so labels follow the CP user's language and defaults the config file.
         $this->registerSettingsBlueprint(fn (): array => Settings::blueprint());
     }

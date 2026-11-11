@@ -22,3 +22,13 @@ it('leaves Passport\'s migrations to sites that already published them', functio
         unlink($published);
     }
 });
+
+it('loads the committed Control Panel build', function () {
+    // Sites run no frontend build: the CP loads resources/dist, published to public/vendor.
+    $vite = Statamic\Statamic::availableVites(request())['statamic-content-mcp'] ?? null;
+    $manifest = json_decode((string) file_get_contents(__DIR__.'/../../resources/dist/build/manifest.json'), true);
+
+    expect($vite)->toMatchArray(['input' => ['resources/js/cp.ts'], 'buildDirectory' => 'vendor/statamic-content-mcp/build'])
+        ->and($manifest['resources/js/cp.ts']['file'])->toStartWith('assets/cp-')
+        ->and(file_exists(__DIR__.'/../../resources/dist/build/'.$manifest['resources/js/cp.ts']['file']))->toBeTrue();
+});
