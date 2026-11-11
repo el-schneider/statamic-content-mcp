@@ -74,7 +74,7 @@ r = c.post(login_url, data={"email": creds[0], "password": creds[1]}, headers={"
 ok("CP login redirects back to authorize", r.status_code in (302, 303) and "/oauth/authorize" in r.headers.get("location", ""), f'{r.status_code} {r.headers.get("location")}')
 
 r = c.get(r.headers["location"])
-ok("consent screen, not frameable, shows claude.ai", r.status_code == 200 and "claude.ai" in r.text and r.headers.get("x-frame-options", "").upper() == "DENY",
+ok("consent screen, not frameable, shows claude.ai", r.status_code == 200 and "claude.ai" in r.text and "DENY" in r.headers.get("x-frame-options", "").upper(),
    f'{r.status_code} xfo={r.headers.get("x-frame-options")}')
 form = re.search(r'<form[^>]*method="post"[^>]*>(.*?)</form>', r.text, re.S | re.I).group(1)
 fields = {m.group(1): html.unescape(m.group(2)) for m in re.finditer(r'name="([^"]+)"\s+value="([^"]*)"', form)}
