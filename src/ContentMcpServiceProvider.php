@@ -42,13 +42,6 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
         // Statamic merges its config in its own register(), which may run after ours.
         $this->app->booting(function (): void {
             config(['passport.guard' => config('statamic.users.guards.cp')]);
-
-            // laravel/mcp lets clients on any domain register. A site that publishes
-            // config/mcp.php decides for itself; checked by file because config:cache
-            // would otherwise hide whose value is in effect.
-            if (! file_exists(config_path('mcp.php'))) {
-                config(['mcp.redirect_domains' => config('statamic.content-mcp.redirect_domains')]);
-            }
         });
     }
 
@@ -90,6 +83,9 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
     public function bootAddon(): void
     {
         Permission::extend(fn () => Permission::register(self::PERMISSION)->label('Use AI assistants through Content MCP'));
+
+        // A closure, so labels follow the CP user's language and defaults the config file.
+        $this->registerSettingsBlueprint(fn (): array => Settings::blueprint());
     }
 
     /**

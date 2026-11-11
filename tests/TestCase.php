@@ -24,12 +24,15 @@ abstract class TestCase extends AddonTestCase
     /**
      * A run killed mid-test (e.g. output piped into `head`) leaves its files behind:
      * RouteCacheTest's cached routes would make every later test boot with them, and
-     * AddonTestCase wipes the fake Stache directory only in tearDown.
+     * AddonTestCase wipes the fake Stache directory only in tearDown. Addon settings
+     * saved through the Control Panel land in the skeleton's resources/addons.
      */
     protected function setUp(): void
     {
-        if (file_exists($routes = static::applicationBasePath().'/bootstrap/cache/routes-v7.php')) {
-            unlink($routes);
+        foreach (['/bootstrap/cache/routes-v7.php', '/resources/addons/statamic-content-mcp.yaml'] as $leftover) {
+            if (file_exists($path = static::applicationBasePath().$leftover)) {
+                unlink($path);
+            }
         }
 
         parent::setUp();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp\Tools;
 
+use ElSchneider\ContentMcp\Settings;
 use Illuminate\Support\Collection as Handles;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Request;
@@ -87,7 +88,7 @@ final class GetOverview extends ContentTool
                 ->filter(fn ($container): bool => Gate::allows('view', $container))
                 ->map(fn ($container): array => ['handle' => $container->handle(), 'title' => $container->title()])
                 ->values()->all(),
-            'guidelines' => config('statamic.content-mcp.instructions'),
+            'guidelines' => Settings::instructions(),
         ]);
     }
 }

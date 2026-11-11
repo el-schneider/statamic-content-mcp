@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElSchneider\ContentMcp\Http\Middleware\ApplyAllowedApps;
 use ElSchneider\ContentMcp\Http\Middleware\AuthenticateBearerToken;
 use ElSchneider\ContentMcp\Server\ContentMcpServer;
 use Illuminate\Support\Facades\Route;
@@ -13,4 +14,4 @@ Mcp::web(config()->string('statamic.content-mcp.route'), ContentMcpServer::class
 
 // Discovery documents and dynamic client registration. Registration writes a row
 // per call and laravel/mcp does not throttle it.
-Route::middleware('throttle:60,1')->group(fn () => Mcp::oauthRoutes());
+Route::middleware(['throttle:60,1', ApplyAllowedApps::class])->group(fn () => Mcp::oauthRoutes());

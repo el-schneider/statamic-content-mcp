@@ -9,5 +9,13 @@
     "No access": "Kein Zugriff",
     "The account :user may not connect apps to this site.": "Das Konto :user darf keine Apps mit dieser Website verbinden.",
     "Ask an administrator for the permission \":permission\".": "Bitte eine Administratorin oder einen Administrator um die Berechtigung „:permission“.",
-    "Use AI assistants through Content MCP": "KI-Assistenten über Content MCP nutzen"
+    "Use AI assistants through Content MCP": "KI-Assistenten über Content MCP nutzen",
+    "Editorial guidelines": "Redaktionelle Richtlinien",
+    "Voice, tone, audience and conventions of your site, in Markdown. The AI assistant receives them at the start of every session. Left empty, the guidelines from the config file apply.": "Stimme, Ton, Zielgruppe und Konventionen deiner Website, in Markdown. Der KI-Assistent erhält sie zu Beginn jeder Sitzung. Bleibt das Feld leer, gelten die Richtlinien aus der Konfigurationsdatei.",
+    "Allowed apps": "Erlaubte Apps",
+    "Managed in the file config/mcp.php of your site. Changes here have no effect.": "Wird in der Datei config/mcp.php deiner Website verwaltet. Änderungen hier haben keine Wirkung.",
+    "The addresses of the AI apps that may connect, such as https://claude.ai. Only apps on these addresses can register and send editors back after they sign in. Add http://localhost to allow desktop and command-line tools on the editor's own computer.": "Die Adressen der KI-Apps, die sich verbinden dürfen, zum Beispiel https://claude.ai. Nur Apps unter diesen Adressen können sich registrieren und Redakteure nach der Anmeldung zurückleiten. Mit http://localhost erlaubst du Desktop- und Kommandozeilen-Tools auf dem eigenen Rechner der Redakteure.",
+    "Allow deleting": "Löschen erlauben",
+    "Lets the assistant delete entries, terms and assets for editors who may delete them. Content the assistant reads can contain text that tries to steer it, and a deletion cannot be undone.": "Der Assistent darf Einträge, Begriffe und Assets löschen, wenn die Redakteure sie löschen dürfen. Inhalte, die der Assistent liest, können Text enthalten, der ihn zu steuern versucht, und eine Löschung lässt sich nicht rückgängig machen.",
+    ":value is not an app address. Enter only the scheme and host, such as https://claude.ai or http://localhost.": ":value ist keine App-Adresse. Gib nur Schema und Host an, zum Beispiel https://claude.ai oder http://localhost."
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ElSchneider\ContentMcp\Server;
 
 use Composer\InstalledVersions;
+use ElSchneider\ContentMcp\Settings;
 use ElSchneider\ContentMcp\Tools\CreateEntry;
 use ElSchneider\ContentMcp\Tools\CreateTerm;
 use ElSchneider\ContentMcp\Tools\DeleteAsset;
@@ -83,9 +84,9 @@ final class ContentMcpServer extends Server
     {
         $this->version = InstalledVersions::getPrettyVersion('el-schneider/statamic-content-mcp') ?? $this->version;
 
-        $guidelines = config('statamic.content-mcp.instructions');
+        $guidelines = Settings::instructions();
 
-        if (is_string($guidelines) && $guidelines !== '') {
+        if ($guidelines !== null) {
             $this->instructions .= "\n\n## Editorial guidelines of this site\n\n".$guidelines;
         }
     }

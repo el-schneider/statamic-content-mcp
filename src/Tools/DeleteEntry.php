@@ -6,6 +6,7 @@ namespace ElSchneider\ContentMcp\Tools;
 
 use ElSchneider\ContentMcp\Content\Find;
 use ElSchneider\ContentMcp\Content\NotSaved;
+use ElSchneider\ContentMcp\Settings;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +29,7 @@ final class DeleteEntry extends ContentTool
 
     public function shouldRegister(): bool
     {
-        return (bool) config('statamic.content-mcp.deletes');
+        return Settings::deletes();
     }
 
     public function schema(JsonSchema $schema): array
