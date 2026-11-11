@@ -58,8 +58,8 @@ final class GetBlueprint extends ContentTool
         $blueprint = match ($source) {
             'collection' => Find::collection($value)->entryBlueprint($handle),
             'taxonomy' => Find::taxonomy($value)->termBlueprint($handle),
-            // Variables fall back to a default blueprint when the set has none.
-            'global' => Find::globalSet($value)->makeLocalization(Find::site(null)->handle())->blueprint(),
+            // Variables fall back to a default blueprint when the set has none; it is the same in every site.
+            'global' => ($set = Find::globalSet($value))->makeLocalization((string) $set->sites()->first())->blueprint(),
             'navigation' => Find::navigation($value)->blueprint(),
             'asset_container' => Find::assetContainer($value)->blueprint(),
         };

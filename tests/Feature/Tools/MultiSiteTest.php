@@ -85,6 +85,24 @@ it('reports a site the editor may not access exactly like an unknown one', funct
     'list_terms' => [ListTerms::class, ['taxonomy' => 'tags']],
 ]);
 
+it('checks access to the default site when no site is given', function (string $tool, array $arguments) {
+    // Regression: an omitted `site` skipped the check an explicit `site: default` gets.
+    $german = editor(['access content mcp', 'access de site', 'view events entries', 'create events entries', 'edit contact globals', 'view tags terms', 'create tags terms', 'edit tags terms'], 'german@example.com');
+    Term::make('music')->taxonomy('tags')->data(['title' => 'Music'])->save();
+
+    expect(tool($german, $tool, $arguments)->errorText())->toBe('Site [default] not found.')
+        ->and(tool($german, $tool, [...$arguments, 'site' => 'de'])->errorText())->not->toContain('Site [');
+})->with([
+    'find_entries' => [FindEntries::class, ['collection' => 'events']],
+    'create_entry' => [CreateEntry::class, ['collection' => 'events', 'data' => ['title' => 'X']]],
+    'get_global' => [GetGlobal::class, ['handle' => 'contact']],
+    'update_global' => [UpdateGlobal::class, ['handle' => 'contact', 'data' => ['hours' => 'x']]],
+    'list_terms' => [ListTerms::class, ['taxonomy' => 'tags']],
+    'get_term' => [ElSchneider\ContentMcp\Tools\GetTerm::class, ['taxonomy' => 'tags', 'slug' => 'music']],
+    'create_term' => [ElSchneider\ContentMcp\Tools\CreateTerm::class, ['taxonomy' => 'tags', 'data' => ['title' => 'Jazz']]],
+    'update_term' => [ElSchneider\ContentMcp\Tools\UpdateTerm::class, ['taxonomy' => 'tags', 'slug' => 'music', 'data' => ['title' => 'Musik']]],
+]);
+
 it('finds and creates entries in the given site', function () {
     [, $german] = localizedEvent();
 

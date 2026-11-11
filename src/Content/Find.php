@@ -125,14 +125,11 @@ final class Find
     }
 
     /**
-     * The given site, or the default site when none is given.
+     * The given site, or the default site when none is given; either must be accessible.
      */
     public static function site(?string $handle): Site
     {
-        if ($handle === null) {
-            return Sites::default();
-        }
-
+        $handle ??= Sites::default()->handle();
         $site = Sites::get($handle);
 
         if (! $site instanceof Site || Gate::denies('view', $site)) {
