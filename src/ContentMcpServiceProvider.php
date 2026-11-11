@@ -7,6 +7,7 @@ namespace ElSchneider\ContentMcp;
 use Carbon\CarbonInterval;
 use Composer\InstalledVersions;
 use ElSchneider\ContentMcp\Http\Middleware\EnsureEditorCanConsent;
+use ElSchneider\ContentMcp\Http\Middleware\LockTokenExchange;
 use ElSchneider\ContentMcp\Http\ResolveBearerTokenUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -94,6 +95,7 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
         $this->app->booted(function (): void {
             if (! $this->app->routesAreCached()) {
                 Route::getRoutes()->getByName('passport.authorizations.authorize')?->middleware(EnsureEditorCanConsent::class);
+                Route::getRoutes()->getByName('passport.token')?->middleware(LockTokenExchange::class);
             }
         });
 

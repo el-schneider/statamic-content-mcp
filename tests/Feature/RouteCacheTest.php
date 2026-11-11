@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElSchneider\ContentMcp\Http\Middleware\LockTokenExchange;
 use Illuminate\Routing\Route;
 
 /*
@@ -30,7 +31,8 @@ it('connects Claude and serves MCP calls from cached routes', function () {
         require $cache;
 
         expect(app()->routesAreCached())->toBeTrue()
-            ->and(app('router')->getRoutes()->getByName('statamic.cp.content-mcp.connections.destroy'))->not->toBeNull();
+            ->and(app('router')->getRoutes()->getByName('statamic.cp.content-mcp.connections.destroy'))->not->toBeNull()
+            ->and(app('router')->getRoutes()->getByName('passport.token')?->gatherMiddleware())->toContain(LockTokenExchange::class);
 
         siteContent();
         $this->getJson('/.well-known/oauth-protected-resource/mcp/content')->assertOk()->assertJsonPath('resource', url('/mcp/content'));

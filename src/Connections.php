@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace ElSchneider\ContentMcp;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\NoLock;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Mcp\Server\Registrar;
 use Laravel\Passport\Client;
 use Laravel\Passport\Passport;
+use RuntimeException;
 use Statamic\Auth\User as StatamicUser;
 use Statamic\Facades\User;
 
@@ -24,6 +28,22 @@ use Statamic\Facades\User;
  */
 final class Connections
 {
+    /**
+     * Seconds a token exchange or a Disconnect waits for the other to finish.
+     */
+    public const int LOCK_WAIT = 10;
+
+    /**
+     * Taken by every token exchange of the client (LockTokenExchange) and by Disconnect, so
+     * an exchange either finishes before a revocation, which then revokes what it issued,
+     * or starts after it and fails. Atomic on the file, database, redis, memcached and
+     * dynamodb stores; the array store locks only within one process.
+     */
+    public static function lock(string $clientId): Lock
+    {
+        return Cache::lock('content-mcp:oauth-client:'.$clientId, 30);
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
@@ -85,13 +105,22 @@ final class Connections
      */
     public static function disconnect(string $clientId, string $userId): int
     {
-        $tokens = Passport::token()->newQuery()->where('client_id', $clientId)->where('user_id', $userId);
-        $count = (clone $tokens)->count();
+        $lock = self::lock($clientId);
 
-        Passport::refreshToken()->newQuery()->whereIn('access_token_id', (clone $tokens)->select('id'))->update(['revoked' => true]);
-        $tokens->update(['revoked' => true]);
-        Passport::authCode()->newQuery()->where('client_id', $clientId)->where('user_id', $userId)->update(['revoked' => true]);
+        // The null store's locks lock nothing; a Disconnect that could be undone by a refresh in flight must not pass as done.
+        if ($lock instanceof NoLock) {
+            throw new RuntimeException('Disconnecting needs a cache store that supports locks; the configured cache store has none.');
+        }
 
-        return $count;
+        return $lock->block(self::LOCK_WAIT, function () use ($clientId, $userId): int {
+            $tokens = Passport::token()->newQuery()->where('client_id', $clientId)->where('user_id', $userId);
+            $count = (clone $tokens)->count();
+
+            Passport::refreshToken()->newQuery()->whereIn('access_token_id', (clone $tokens)->select('id'))->update(['revoked' => true]);
+            $tokens->update(['revoked' => true]);
+            Passport::authCode()->newQuery()->where('client_id', $clientId)->where('user_id', $userId)->update(['revoked' => true]);
+
+            return $count;
+        });
     }
 }

@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use ElSchneider\ContentMcp\Connections;
+use Illuminate\Support\Facades\Event;
 use Inertia\Testing\AssertableInertia;
+use Laravel\Passport\Events\AccessTokenCreated;
 use Statamic\Auth\User as StatamicUser;
 use Statamic\Facades\User;
 
@@ -112,6 +115,39 @@ it('lets editors disconnect their own app, which stops its bearer and refresh to
     refreshWith($tokens)->assertStatus(400)->assertJsonPath('error', 'invalid_grant');
 
     signIn($editor)->get(cp_route('content-mcp.connect'))->assertInertia(fn (AssertableInertia $page) => $page->has('connections', 0));
+});
+
+it('holds a token exchange and Disconnect under one lock, so a refresh in flight cannot outlive Disconnect', function () {
+    $editor = cpUser(['access content mcp'], 'editor@example.com');
+    $tokens = connectedApp($editor);
+    $lockedDuringExchange = null;
+
+    // After the refresh token was validated, before the new tokens are stored: where a Disconnect would slip in.
+    Event::listen(AccessTokenCreated::class, function () use ($tokens, &$lockedDuringExchange): void {
+        $lock = Connections::lock($tokens['client_id']);
+        $lockedDuringExchange = ! $lock->get();
+        $lock->release();
+    });
+
+    $fresh = refreshWith($tokens)->assertOk()->json();
+
+    expect($lockedDuringExchange)->toBeTrue();
+
+    // The Disconnect that waited for the lock revokes what the exchange issued.
+    Connections::disconnect($tokens['client_id'], $editor->id());
+
+    mcp($fresh['access_token'], 'tools/list')->assertUnauthorized();
+    refreshWith([...$tokens, 'refresh_token' => $fresh['refresh_token']])->assertStatus(400);
+});
+
+it('refuses to disconnect with a cache store that cannot lock', function () {
+    $editor = cpUser(['access content mcp'], 'editor@example.com');
+    $tokens = connectedApp($editor);
+    config(['cache.stores.none' => ['driver' => 'null'], 'cache.default' => 'none']);
+
+    expect(fn () => Connections::disconnect($tokens['client_id'], $editor->id()))->toThrow(RuntimeException::class, 'lock');
+
+    mcp($tokens['access_token'], 'tools/list')->assertOk();
 });
 
 it('lets only users who manage connections disconnect someone else', function () {

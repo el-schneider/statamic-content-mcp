@@ -196,7 +196,7 @@ Validation errors use the same paths, with the `id` of a set or row, or its posi
 - Delete tools are off unless deleting is allowed, and need the delete permission per item.
 - The consent screen cannot be embedded in a frame.
 - Client registration and the endpoint are rate limited.
-- To disconnect one app, use Disconnect on the Connect or Connections page: its tokens are revoked and its next request fails, so it has to connect and be approved again. To cut an editor off entirely, remove the permission from their role. To disconnect everyone, rotate the Passport keys.
+- To disconnect one app, use Disconnect on the Connect or Connections page: its tokens are revoked and its next request fails, so it has to connect and be approved again. A token renewal already under way finishes first and is revoked too. Disconnect takes a lock in the cache for that, so it needs a cache store with locks (every store Laravel ships except `null`; `array` locks only within one request). To cut an editor off entirely, remove the permission from their role. To disconnect everyone, rotate the Passport keys.
 - Schedule `php artisan passport:purge` to clean up expired and revoked tokens.
 
 ## Limitations
