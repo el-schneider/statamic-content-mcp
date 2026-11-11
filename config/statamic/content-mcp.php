@@ -60,4 +60,18 @@ return [
         'max_size' => 10 * 1024 * 1024,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Delete Tools
+    |--------------------------------------------------------------------------
+    |
+    | Offer `delete_entry`, `delete_term` and `delete_asset`. Off by default:
+    | content Claude reads (a page, an uploaded file) can contain text that
+    | tries to steer it, and deletes cannot be undone. Editors still need the
+    | delete permission on each item.
+    |
+    */
+
+    'deletes' => false,
+
 ];

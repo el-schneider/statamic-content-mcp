@@ -7,6 +7,9 @@ namespace ElSchneider\ContentMcp\Server;
 use Composer\InstalledVersions;
 use ElSchneider\ContentMcp\Tools\CreateEntry;
 use ElSchneider\ContentMcp\Tools\CreateTerm;
+use ElSchneider\ContentMcp\Tools\DeleteAsset;
+use ElSchneider\ContentMcp\Tools\DeleteEntry;
+use ElSchneider\ContentMcp\Tools\DeleteTerm;
 use ElSchneider\ContentMcp\Tools\FindAssets;
 use ElSchneider\ContentMcp\Tools\FindEntries;
 use ElSchneider\ContentMcp\Tools\GetAsset;
@@ -66,6 +69,9 @@ final class ContentMcpServer extends Server
         UploadAsset::class,
         UpdateNavigation::class,
         MoveEntry::class,
+        DeleteEntry::class,
+        DeleteTerm::class,
+        DeleteAsset::class,
     ];
 
     protected function boot(): void

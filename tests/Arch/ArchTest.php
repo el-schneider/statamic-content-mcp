@@ -25,7 +25,7 @@ arch('no debugging leftovers')
  * tool must not ship without saying which kind it is.
  */
 it('annotates every registered tool as read-only or lists it as a write tool', function () {
-    $writeTools = ['create_entry', 'update_entry', 'publish_entry', 'unpublish_entry', 'update_global', 'localize_entry', 'create_term', 'update_term', 'update_asset', 'upload_asset', 'update_navigation', 'move_entry'];
+    $writeTools = ['create_entry', 'update_entry', 'publish_entry', 'unpublish_entry', 'update_global', 'localize_entry', 'create_term', 'update_term', 'update_asset', 'upload_asset', 'update_navigation', 'move_entry', 'delete_entry', 'delete_term', 'delete_asset'];
 
     /** @var list<class-string<Tool>> $classes */
     $classes = (new ReflectionClass(ContentMcpServer::class))->getProperty('tools')->getDefaultValue();
@@ -37,10 +37,14 @@ it('annotates every registered tool as read-only or lists it as a write tool', f
         if (in_array($tool->name(), $writeTools, true)) {
             expect($annotations)->not->toHaveKey('readOnlyHint', "{$tool->name()} writes")
                 ->and($annotations)->toHaveKeys(['destructiveHint', 'idempotentHint']);
+
+            if (str_starts_with($tool->name(), 'delete_')) {
+                expect($annotations['destructiveHint'])->toBeTrue("{$tool->name()} deletes");
+            }
         } else {
             expect($annotations['readOnlyHint'] ?? null)->toBeTrue("{$tool->name()} is neither read-only nor a listed write tool");
         }
     }
 
-    expect(count($classes))->toBe(22);
+    expect(count($classes))->toBe(25);
 });
