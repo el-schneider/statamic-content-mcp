@@ -137,7 +137,7 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
 
         if ($repository instanceof FileSettingsRepository) {
             $this->app->bind(SettingsContract::class, fn (Application $app, array $parameters): SettingsContract => $parameters['addon']->package() === Settings::PACKAGE
-                ? new LiteralSettings($parameters['addon'], $parameters['settings'])
+                ? new SettingsFile($parameters['addon'], $parameters['settings'])
                 : new FileSettings($parameters['addon'], $parameters['settings']));
         }
     }

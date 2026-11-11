@@ -75,7 +75,7 @@ A typical setup: editors get **Use AI assistants through Content MCP** next to t
 
 ## Configuration
 
-The config file holds the defaults. A value saved on the Settings page wins, and an emptied field falls back to the file again. Values saved in the Control Panel are stored in `resources/addons/statamic-content-mcp.yaml`, so they travel with your content in Git.
+The config file holds the defaults, and the Settings page shows them until someone changes a field. Saving stores only the fields that differ from the config file, in `resources/addons/statamic-content-mcp.yaml`, so they travel with your content in Git. A stored value wins over the config file; every other field keeps following it, also when a developer changes it later. Emptied guidelines fall back to the config file. An emptied list of allowed apps is stored and lets no app register.
 
 ```bash
 php artisan vendor:publish --tag=content-mcp-config
@@ -94,7 +94,7 @@ return [
 
 - `route` is the path of the endpoint. File only.
 - `instructions` holds your editorial guidelines (Settings: Editorial guidelines). The assistant receives them at the start of every session and in `get_overview`. Field `instructions` in your blueprints reach it too, through `get_blueprint`.
-- `redirect_domains` lists where OAuth clients may send the editor back after approval, which decides which apps can register at all (Settings: Allowed apps). Each entry is a scheme and host, such as `https://claude.ai`. The default allows only Claude. To connect a desktop or command-line tool on the editor's own computer, add `http://localhost` (any port). If your app has its own `config/mcp.php` (the config of `laravel/mcp`), its `redirect_domains` is used, and the Settings page shows that value read-only with a note.
+- `redirect_domains` lists where OAuth clients may send the editor back after approval, which decides which apps can register at all (Settings: Allowed apps). Each entry is a scheme and host, such as `https://claude.ai`. The default allows only Claude. To connect a desktop or command-line tool on the editor's own computer, add `http://localhost` (any port). An empty list lets no app register; apps already connected keep working until they are disconnected. If your app has its own `config/mcp.php` (the config of `laravel/mcp`), its `redirect_domains` is used, and the Settings page shows that value read-only with a note.
 - `uploads.max_size` is the largest file in bytes `upload_asset` downloads. The download stops as soon as it is exceeded. Your containers' validation rules apply as well. File only.
 - `deletes` offers `delete_entry`, `delete_term` and `delete_asset` (Settings: Allow deleting). It is off by default: content the assistant reads, such as a page or an uploaded document, can contain text that tries to steer it, and a delete cannot be undone. Editors still need the delete permission on each item.
 

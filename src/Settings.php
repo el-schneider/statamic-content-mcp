@@ -58,36 +58,51 @@ final class Settings
     }
 
     /**
+     * The values in effect while nothing is saved: the config file's.
+     *
+     * @return array{instructions: mixed, redirect_domains: mixed, deletes: bool}
+     */
+    public static function defaults(): array
+    {
+        return [
+            'instructions' => config('statamic.content-mcp.instructions'),
+            'redirect_domains' => self::redirectDomainsManagedByApp() ? config('mcp.redirect_domains') : config('statamic.content-mcp.redirect_domains'),
+            'deletes' => (bool) config('statamic.content-mcp.deletes'),
+        ];
+    }
+
+    /**
      * The settings form. Its defaults are the config file's values, so the form shows
-     * what is in effect before anything is saved, and an emptied field falls back to them.
+     * what is in effect before anything is saved; SettingsFile stores only what differs.
      *
      * @return array<string, mixed>
      */
     public static function blueprint(): array
     {
         $managedByApp = self::redirectDomainsManagedByApp();
+        $defaults = self::defaults();
 
         return ['tabs' => ['main' => ['sections' => [['fields' => [
             ['handle' => 'instructions', 'field' => [
                 'type' => 'markdown',
                 'display' => __('Editorial guidelines'),
                 'instructions' => __('Voice, tone, audience and conventions of your site, in Markdown. The AI assistant receives them at the start of every session. Left empty, the guidelines from the config file apply.'),
-                'default' => config('statamic.content-mcp.instructions'),
+                'default' => $defaults['instructions'],
             ]],
             ['handle' => 'redirect_domains', 'field' => [
                 'type' => 'list',
                 'display' => __('Allowed apps'),
                 'instructions' => $managedByApp
                     ? __('Managed in the file config/mcp.php of your site. Changes here have no effect.')
-                    : __('The addresses of the AI apps that may connect, such as https://claude.ai. Only apps on these addresses can register and send editors back after they sign in. Add http://localhost to allow desktop and command-line tools on the editor\'s own computer.'),
-                'default' => $managedByApp ? config('mcp.redirect_domains') : config('statamic.content-mcp.redirect_domains'),
+                    : __('The addresses of the AI apps that may connect, such as https://claude.ai. Only apps on these addresses can register. Add http://localhost to allow desktop and command-line tools on the user\'s own computer. With the list empty, no app can register; apps already connected keep working until they are disconnected.'),
+                'default' => $defaults['redirect_domains'],
                 ...($managedByApp ? ['visibility' => 'read_only'] : ['validate' => ['new \\'.AllowedApps::class.'()']]),
             ]],
             ['handle' => 'deletes', 'field' => [
                 'type' => 'toggle',
                 'display' => __('Allow deleting'),
-                'instructions' => __('Lets the assistant delete entries, terms and assets for editors who may delete them. Content the assistant reads can contain text that tries to steer it, and a deletion cannot be undone.'),
-                'default' => (bool) config('statamic.content-mcp.deletes'),
+                'instructions' => __('Lets the assistant delete entries, terms and assets for everyone who may delete them themselves. Content the assistant reads can contain text that tries to steer it, and a deletion cannot be undone.'),
+                'default' => $defaults['deletes'],
             ]],
         ]]]]]];
     }

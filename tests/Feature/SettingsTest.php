@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ElSchneider\ContentMcp\Server\ContentMcpServer;
+use ElSchneider\ContentMcp\Settings;
 use ElSchneider\ContentMcp\Tools\DeleteEntry;
 use ElSchneider\ContentMcp\Tools\GetOverview;
 use Statamic\Facades\Addon;
@@ -168,6 +169,35 @@ it('needs the settings permission to save', function () {
         ->assertForbidden();
 
     ContentMcpServer::tools()->assertNotRegistered(DeleteEntry::class);
+});
+
+it('stores only what the owner changed, so untouched fields follow later changes to the config file', function () {
+    $owner = editor(['access cp', SETTINGS_PERMISSION], 'owner@example.com');
+    $settingsUrl = cp_route('addons.settings.update', 'statamic-content-mcp');
+    $form = $this->actingAs($owner)->getJson(cp_route('addons.settings.edit', 'statamic-content-mcp'))->assertOk()->json('values');
+
+    $this->patchJson($settingsUrl, $form)->assertOk();
+
+    expect(Addon::get('el-schneider/statamic-content-mcp')->settings()->raw())->toBe([]);
+
+    $this->patchJson($settingsUrl, [...$form, 'deletes' => true])->assertOk();
+    config([
+        'statamic.content-mcp.instructions' => 'Changed in the config file.',
+        'statamic.content-mcp.redirect_domains' => ['https://assistant.example'],
+    ]);
+
+    expect(Addon::get('el-schneider/statamic-content-mcp')->settings()->raw())->toBe(['deletes' => true])
+        ->and(Settings::instructions())->toBe('Changed in the config file.')
+        ->and(Settings::redirectDomains())->toBe(['https://assistant.example'])
+        ->and(Settings::deletes())->toBeTrue();
+});
+
+it('lets an emptied list of allowed apps stop every app from registering', function () {
+    saveSettings(['redirect_domains' => []])->assertOk();
+
+    $this->postJson('/oauth/register', ['redirect_uris' => [CLAUDE_CALLBACK]])->assertStatus(400);
+
+    expect(Settings::blueprint()['tabs']['main']['sections'][0]['fields'][1]['field']['instructions'])->toContain('empty');
 });
 
 it('shows the values in effect in the settings form before anything is saved', function () {
