@@ -8,7 +8,6 @@ composer check      # PHP gate: lint:check (pint --test), types:check (phpstan l
 composer lint       # pint
 npm run check:fix   # oxfmt + oxlint through Vite+
 npm run build       # rebuild resources/dist; commit it (see below)
-uv run scripts/oauth-e2e.py https://site.example [email password]   # walks the OAuth + MCP flow against a running site, as a Claude connector does
 ```
 
 ## Landmines
