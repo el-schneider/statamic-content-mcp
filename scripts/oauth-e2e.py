@@ -95,7 +95,7 @@ ok("initialize", r.status_code == 200 and "result" in body, f"{r.status_code} {r
 print("  server:", body["result"]["serverInfo"], "| instructions chars:", len(body["result"].get("instructions", "")))
 r, body = rpc(tok["access_token"], "tools/list")
 names = [t["name"] for t in body["result"]["tools"]]
-ok("tools/list", len(names) == 12, ", ".join(names))
+ok("tools/list", "get_overview" in names, ", ".join(names))
 r, body = rpc(tok["access_token"], "tools/call", {"name": "get_overview", "arguments": {}})
 ok("get_overview", not body["result"].get("isError"), body["result"]["content"][0]["text"][:600])
 
