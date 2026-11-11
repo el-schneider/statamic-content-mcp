@@ -1,0 +1,64 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ElSchneider\ContentMcp\Tools;
+
+use Illuminate\Support\Facades\Gate;
+use Laravel\Mcp\Request;
+use Laravel\Mcp\Response;
+use Laravel\Mcp\ResponseFactory;
+use Laravel\Mcp\Server\Attributes\Description;
+use Laravel\Mcp\Server\Attributes\Title;
+use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
+use Statamic\Contracts\Entries\Entry as EntryContract;
+use Statamic\Entries\Collection;
+use Statamic\Facades\AssetContainer;
+use Statamic\Facades\Collection as Collections;
+use Statamic\Facades\GlobalSet;
+use Statamic\Facades\Site;
+use Statamic\Facades\Taxonomy;
+use Statamic\Fields\Blueprint;
+
+#[Title('Get site overview')]
+#[Description('Start here. Returns the site, the editor you act for, the collections, taxonomies, global sets and asset containers this editor may access, and the site\'s editorial guidelines. Follow the guidelines in everything you write.')]
+#[IsReadOnly]
+final class GetOverview extends ContentTool
+{
+    protected string $name = 'get_overview';
+
+    protected function respond(Request $request): ResponseFactory
+    {
+        $user = $this->user();
+        $site = Site::default();
+
+        return Response::structured([
+            'site' => ['name' => $site->name(), 'url' => $site->absoluteUrl()],
+            'user' => ['id' => $user->getAuthIdentifier(), 'name' => $user->name(), 'email' => $user->email()],
+            'collections' => Collections::all()
+                ->filter(fn (Collection $collection): bool => Gate::allows('view', $collection))
+                ->map(fn (Collection $collection): array => [
+                    'handle' => $collection->handle(),
+                    'title' => $collection->title(),
+                    'blueprints' => $collection->entryBlueprints()->reject(fn (Blueprint $blueprint): bool => (bool) $blueprint->hidden())->map->handle()->values()->all(),
+                    'dated' => $collection->dated(),
+                    'structured' => $collection->hasStructure(),
+                    'can_create' => Gate::allows('create', [EntryContract::class, $collection, $site]),
+                ])
+                ->values()->all(),
+            'taxonomies' => Taxonomy::all()
+                ->filter(fn ($taxonomy): bool => Gate::allows('view', $taxonomy))
+                ->map(fn ($taxonomy): array => ['handle' => $taxonomy->handle(), 'title' => $taxonomy->title()])
+                ->values()->all(),
+            'globals' => GlobalSet::all()
+                ->filter(fn ($set): bool => ($variables = $set->in($site->handle())) !== null && Gate::allows('edit', $variables))
+                ->map(fn ($set): array => ['handle' => $set->handle(), 'title' => $set->title()])
+                ->values()->all(),
+            'asset_containers' => AssetContainer::all()
+                ->filter(fn ($container): bool => Gate::allows('view', $container))
+                ->map(fn ($container): array => ['handle' => $container->handle(), 'title' => $container->title()])
+                ->values()->all(),
+            'guidelines' => config('statamic.content-mcp.instructions'),
+        ]);
+    }
+}
