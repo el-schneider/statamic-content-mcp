@@ -54,13 +54,13 @@ final class FindEntries extends ContentTool
             ? collect([Find::collection($request->string('collection')->toString())])
             : Collections::all()->filter(fn (EntryCollection $collection): bool => Gate::allows('view', $collection));
 
-        $query = Entries::query()
-            // @phpstan-ignore method.notFound (Statamic's entry query contract is an empty interface; both drivers' builders have whereIn)
-            ->whereIn('collection', $collections->map->handle()->values()->all())
-            ->where('site', $this->site($request)->handle())
+        $handles = $collections->map->handle()->values()->all();
+        // One line: PHPStan versions attribute errors in a call chain to different lines.
+        $query = Entries::query()->whereIn('collection', $handles); // @phpstan-ignore method.notFound (Statamic's entry query contract is an empty interface; both drivers' builders have whereIn)
+        $query->where('site', $this->site($request)->handle())
             ->when($request->filled('status'), fn ($query) => $query->whereStatus($request->string('status')->toString()));
 
-        $collections->count() === 1 && $collections->first()->dated()
+        $collections->count() === 1 && $collections->first()?->dated()
             ? $query->orderBy('date', 'desc')
             : $query->orderBy('title');
 
