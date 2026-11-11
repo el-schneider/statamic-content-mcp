@@ -261,6 +261,28 @@ final class AgentForm
     }
 
     /**
+     * Strict equality that ignores the key order of objects, since clients may reorder JSON keys.
+     */
+    public static function same(mixed $a, mixed $b): bool
+    {
+        if (! is_array($a) || ! is_array($b)) {
+            return $a === $b;
+        }
+
+        if (count($a) !== count($b) || array_is_list($a) !== array_is_list($b)) {
+            return false;
+        }
+
+        foreach ($a as $key => $value) {
+            if (! array_key_exists($key, $b) || ! self::same($value, $b[$key])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * @param  callable(string): Fields  $fields
      * @param  array<array-key, mixed>  $rows
      * @param  array<array-key, mixed>  $originals
@@ -638,28 +660,6 @@ final class AgentForm
         }
 
         return collect($rows)->first(fn (mixed $row): bool => is_array($row) && ($row[self::idKey()] ?? null) === $id);
-    }
-
-    /**
-     * Strict equality that ignores the key order of objects, since clients may reorder JSON keys.
-     */
-    private static function same(mixed $a, mixed $b): bool
-    {
-        if (! is_array($a) || ! is_array($b)) {
-            return $a === $b;
-        }
-
-        if (count($a) !== count($b) || array_is_list($a) !== array_is_list($b)) {
-            return false;
-        }
-
-        foreach ($a as $key => $value) {
-            if (! array_key_exists($key, $b) || ! self::same($value, $b[$key])) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /**

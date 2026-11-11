@@ -157,6 +157,7 @@ final class ContentWriter
             ->validate());
 
         $values = self::ownValues($entry, self::written($fields, $preProcessed, $merged, $current, $handles), $current);
+        $before = self::state($entry);
 
         if ($values->has('slug')) {
             $entry->slug($values->pull('slug'));
@@ -167,6 +168,11 @@ final class ContentWriter
         }
 
         $entry->merge($values->all());
+
+        // Nothing to store: a save would still rewrite the file and fire the save events.
+        if (self::state($entry) === $before) {
+            return $entry;
+        }
 
         $tree = $collection->structure()?->in($entry->locale());
         self::assertUniqueUri($entry, $tree instanceof CollectionTree ? $tree : null, $entry->parent()?->id());
@@ -199,7 +205,12 @@ final class ContentWriter
         $preProcessed = self::preProcess($fields, $merged);
         self::validate($fields, $merged, $patched, fn () => $preProcessed->validate());
 
-        NotSaved::unless($variables->merge(self::ownValues($variables, self::written($fields, $preProcessed, $merged, $current, $handles), $current)->all())->save() !== false);
+        $before = self::state($variables);
+        $variables->merge(self::ownValues($variables, self::written($fields, $preProcessed, $merged, $current, $handles), $current)->all());
+
+        if (self::state($variables) !== $before) {
+            NotSaved::unless($variables->save() !== false);
+        }
 
         return $variables;
     }
@@ -222,11 +233,15 @@ final class ContentWriter
         $preProcessed = self::preProcess($fields, $merged);
         self::validate($fields, $merged, $patched, fn () => $preProcessed->validate());
 
+        $before = self::state($asset);
+
         foreach (self::written($fields, $preProcessed, $merged, $current, $handles) as $handle => $value) {
             $asset->set($handle, $value);
         }
 
-        NotSaved::unless($asset->save());
+        if (self::state($asset) !== $before) {
+            NotSaved::unless($asset->save());
+        }
 
         return $asset;
     }
@@ -345,12 +360,17 @@ final class ContentWriter
             ->validate());
 
         $values = self::ownValues($term, self::written($fields, $preProcessed, $merged, $current, $handles), $current);
+        $before = self::state($term);
 
         if ($values->has('slug')) {
             $term->slug($values->pull('slug'));
         }
 
         $term->merge($values->all());
+
+        if (self::state($term) === $before) {
+            return $term;
+        }
 
         NotSaved::unless($term->updateLastModified($user)->save());
 
@@ -476,6 +496,22 @@ final class ContentWriter
                 ? AgentForm::keepUnchanged($value, $before->get($handle), $current[$handle])
                 : $value,
         );
+    }
+
+    /**
+     * What a save would store of an item, to tell whether there is anything to save.
+     * A root's nulls are not stored; a localization's override its origin.
+     */
+    private static function state(Entry|Variables|LocalizedTerm|Asset $item): string
+    {
+        $data = $item->data()->all();
+        $root = $item instanceof Asset || $item->isRoot();
+
+        return (string) json_encode([
+            $root ? Arr::removeNullValues($data) : $data,
+            $item instanceof Entry || $item instanceof LocalizedTerm ? $item->slug() : null,
+            $item instanceof Entry && $item->hasDate() ? $item->date()->format('Y-m-d H:i:s') : null,
+        ]);
     }
 
     /**

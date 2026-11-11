@@ -115,6 +115,11 @@ final class Trees
     {
         $before = $tree->tree();
 
+        // Nothing to store: a save would still rewrite the file and fire the save events.
+        if (AgentForm::same($branches, $before)) {
+            return;
+        }
+
         // A cancelled save must not leave the changed tree in the request's cached instance.
         if (! $tree->tree($branches)->save()) {
             $tree->tree($before);
