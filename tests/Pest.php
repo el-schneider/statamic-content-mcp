@@ -87,6 +87,10 @@ const CLAUDE_CALLBACK = 'https://claude.ai/api/mcp/auth_callback';
  */
 function connectClaude(StatamicUser $user, string $authMethod = 'none', ?string $scope = 'mcp:use'): array
 {
+    // The route keeps its controller, and Passport's AuthorizationController keeps the guard,
+    // with the user it saw first. A real request starts fresh; a second connect in a test must too.
+    app('router')->getRoutes()->getByName('passport.authorizations.authorize')->controller = null;
+
     $clientId = registerClaude($authMethod);
     $verifier = Str::random(64);
 
@@ -168,6 +172,13 @@ function loginThroughCp(string $authorizeUrl, StatamicUser $user): HttpResponse
  */
 function mcp(?string $token, string $method, array $params = []): HttpResponse
 {
-    return test()->withHeaders($token === null ? [] : ['Authorization' => 'Bearer '.$token])
+    $default = config('auth.defaults.guard');
+
+    $response = test()->withHeaders($token === null ? [] : ['Authorization' => 'Bearer '.$token])
         ->postJson('/mcp/content', ['jsonrpc' => '2.0', 'id' => 1, 'method' => $method, 'params' => $params]);
+
+    // The endpoint switches the default guard for its request; later test requests share the app.
+    app('auth')->shouldUse($default);
+
+    return $response;
 }

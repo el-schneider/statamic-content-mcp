@@ -29,7 +29,8 @@ it('connects Claude and serves MCP calls from cached routes', function () {
         $this->artisan('migrate');
         require $cache;
 
-        expect(app()->routesAreCached())->toBeTrue();
+        expect(app()->routesAreCached())->toBeTrue()
+            ->and(app('router')->getRoutes()->getByName('statamic.cp.content-mcp.connections.destroy'))->not->toBeNull();
 
         siteContent();
         $this->getJson('/.well-known/oauth-protected-resource/mcp/content')->assertOk()->assertJsonPath('resource', url('/mcp/content'));

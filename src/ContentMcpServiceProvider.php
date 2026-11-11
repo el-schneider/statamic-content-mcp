@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Server\Registrar;
 use Laravel\Passport\Passport;
+use Statamic\Facades\Addon;
+use Statamic\Facades\CP\Nav;
 use Statamic\Facades\Permission;
 use Statamic\Facades\Site;
 use Statamic\Providers\AddonServiceProvider;
@@ -23,6 +25,8 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
     public const GUARD = 'content-mcp';
 
     public const PERMISSION = 'access content mcp';
+
+    public const MANAGE_PERMISSION = 'manage content mcp connections';
 
     protected $viewNamespace = 'content-mcp';
 
@@ -82,7 +86,24 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
 
     public function bootAddon(): void
     {
-        Permission::extend(fn () => Permission::register(self::PERMISSION)->label('Use AI assistants through Content MCP'));
+        Permission::extend(function (): void {
+            Permission::group('content_mcp', 'Content MCP', function (): void {
+                Permission::register(self::PERMISSION)->label('Use AI assistants through Content MCP');
+                Permission::register(self::MANAGE_PERMISSION)->label('See and disconnect every user\'s AI app connections');
+            });
+        });
+
+        Nav::extend(function ($nav): void {
+            $nav->tools('Content MCP')
+                ->route('content-mcp.connect')
+                ->icon('ai-chat-spark')
+                ->can(self::PERMISSION)
+                ->children([
+                    $nav->item(__('Connect'))->route('content-mcp.connect')->can(self::PERMISSION),
+                    $nav->item(__('Connections'))->route('content-mcp.connections')->can(self::MANAGE_PERMISSION),
+                    $nav->item(__('Settings'))->route('content-mcp.settings')->can('editSettings', [Addon::get(Settings::PACKAGE)]),
+                ]);
+        });
 
         // A closure, so labels follow the CP user's language and defaults the config file.
         $this->registerSettingsBlueprint(fn (): array => Settings::blueprint());
