@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Composer\InstalledVersions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -38,6 +39,11 @@ it('connects Claude end to end with a file user and lists the tools', function (
     $tools = mcp($tokens['access_token'], 'tools/list')->assertOk()->json('result.tools');
 
     expect(collect($tools)->pluck('name')->all())->toContain('get_overview', 'create_entry', 'update_entry', 'publish_entry');
+
+    // The installed release, not a number hardcoded in the source.
+    mcp($tokens['access_token'], 'initialize', ['protocolVersion' => '2025-06-18', 'capabilities' => [], 'clientInfo' => ['name' => 'claude-ai', 'version' => '1']])
+        ->assertOk()
+        ->assertJsonPath('result.serverInfo.version', InstalledVersions::getPrettyVersion('el-schneider/statamic-content-mcp'));
 });
 
 it('completes the flow for clients that ask for client_secret_post or omit the scope', function () {

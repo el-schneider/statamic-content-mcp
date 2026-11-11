@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp\Server;
 
+use Composer\InstalledVersions;
 use ElSchneider\ContentMcp\Tools\CreateEntry;
 use ElSchneider\ContentMcp\Tools\FindAssets;
 use ElSchneider\ContentMcp\Tools\FindEntries;
@@ -21,8 +22,6 @@ use Laravel\Mcp\Server;
 final class ContentMcpServer extends Server
 {
     protected string $name = 'Statamic Content';
-
-    protected string $version = '2.0.0';
 
     protected string $instructions = <<<'MARKDOWN'
         You are editing content on a Statamic website on behalf of a signed-in editor, with exactly that editor's permissions.
@@ -51,6 +50,8 @@ final class ContentMcpServer extends Server
 
     protected function boot(): void
     {
+        $this->version = InstalledVersions::getPrettyVersion('el-schneider/statamic-content-mcp') ?? $this->version;
+
         $guidelines = config('statamic.content-mcp.instructions');
 
         if (is_string($guidelines) && $guidelines !== '') {
