@@ -1,0 +1,13 @@
+{
+    "Connect :client to :site": "Connect :client to :site",
+    "After you approve, you will be sent to:": "After you approve, you will be sent to:",
+    "Any app can call itself \":client\". This address tells you who you are really connecting.": "Any app can call itself \":client\". This address tells you who you are really connecting.",
+    "The app will be able to read and edit content with your permissions. New entries are saved as drafts.": "The app will be able to read and edit content with your permissions. New entries are saved as drafts.",
+    "Signed in as :user": "Signed in as :user",
+    "Cancel": "Cancel",
+    "Approve": "Approve",
+    "No access": "No access",
+    "The account :user may not connect apps to this site.": "The account :user may not connect apps to this site.",
+    "Ask an administrator for the permission \":permission\".": "Ask an administrator for the permission \":permission\".",
+    "Connect Claude via Content MCP": "Connect Claude via Content MCP"
+}
