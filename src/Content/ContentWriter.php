@@ -16,12 +16,18 @@ use Statamic\Entries\Collection;
 use Statamic\Entries\Entry;
 use Statamic\Facades\Entry as Entries;
 use Statamic\Facades\Stache;
+use Statamic\Facades\Term as Terms;
 use Statamic\Fields\Blueprint;
 use Statamic\Fields\Fields;
 use Statamic\Globals\Variables;
+use Statamic\Rules\Slug;
+use Statamic\Rules\UniqueTermValue;
 use Statamic\Sites\Site;
 use Statamic\Structures\CollectionTree;
 use Statamic\Support\Arr;
+use Statamic\Taxonomies\LocalizedTerm;
+use Statamic\Taxonomies\Taxonomy;
+use Statamic\Taxonomies\Term;
 
 /**
  * Writes agent-form data through the Control Panel's pipeline
@@ -38,12 +44,17 @@ final class ContentWriter
     private const array ENTRY_ATTRIBUTES = ['id', 'origin', 'published', 'blueprint', 'updated_by', 'updated_at'];
 
     /**
+     * The same for terms (`Term::fileData()`).
+     */
+    private const array TERM_ATTRIBUTES = ['id', 'blueprint', 'localizations', 'updated_by', 'updated_at'];
+
+    /**
      * @param  array<array-key, mixed>  $data
      */
     public static function createEntry(User $user, Collection $collection, Blueprint $blueprint, Site $site, array $data, ?string $parent): Entry
     {
         $fields = $blueprint->fields();
-        self::assertKnown($fields, array_keys($data), entry: true);
+        self::assertKnown($fields, array_keys($data), self::ENTRY_ATTRIBUTES);
 
         $stored = AgentForm::toStored($fields, $data, []);
         self::assertReadOnlyUnchanged($fields, $stored, [], self::lockedHandles($collection, $blueprint));
@@ -124,7 +135,7 @@ final class ContentWriter
         $blueprint = $entry->blueprint();
         $fields = $blueprint->fields();
         $handles = DataPatch::handles($changes);
-        self::assertKnown($fields, $handles, entry: true);
+        self::assertKnown($fields, $handles, self::ENTRY_ATTRIBUTES);
 
         // The values the CP edit form starts from.
         $current = [...self::values($entry), 'slug' => $entry->slug()];
@@ -177,7 +188,7 @@ final class ContentWriter
     {
         $fields = $variables->blueprint()->fields();
         $handles = DataPatch::handles($changes);
-        self::assertKnown($fields, $handles, entry: false);
+        self::assertKnown($fields, $handles, []);
 
         $current = self::values($variables);
         $patched = self::patch($fields, $current, $changes, $handles);
@@ -193,23 +204,111 @@ final class ContentWriter
     }
 
     /**
+     * Mirrors the CP's TermsController::store(). Terms have no drafts in Statamic.
+     *
+     * @param  array<array-key, mixed>  $data
+     */
+    public static function createTerm(User $user, Taxonomy $taxonomy, Blueprint $blueprint, Site $site, array $data): LocalizedTerm
+    {
+        $fields = $blueprint->fields();
+        self::assertKnown($fields, array_keys($data), self::TERM_ATTRIBUTES);
+
+        $stored = AgentForm::toStored($fields, $data, []);
+        self::assertReadOnlyUnchanged($fields, $stored, [], []);
+
+        // The CP's slug field fills itself from the title in the browser.
+        if (! isset($stored['slug']) && is_string($stored['title'] ?? null)) {
+            $stored['slug'] = Str::slug($stored['title'], '-', $site->lang());
+        }
+
+        $preProcessed = self::preProcess($fields, $stored);
+
+        self::validate($fields, $stored, $data, fn () => $preProcessed->validator()
+            ->withRules(['title' => 'required', 'slug' => ['required', new Slug, new UniqueTermValue(taxonomy: $taxonomy->handle(), site: $site->handle())]])
+            ->withReplacements(['taxonomy' => $taxonomy->handle(), 'site' => $site->handle()])
+            ->validate());
+
+        $values = self::processed($preProcessed, $stored)->except(['slug', 'blueprint'])->all();
+        $slug = (string) $stored['slug'];
+
+        /** @var Term $term */
+        $term = Terms::make();
+        $term->taxonomy($taxonomy)->blueprint($blueprint->handle());
+        $localized = $term->in($site->handle());
+        $defaultSite = $taxonomy->sites()->first();
+
+        // Like the CP: a term created in another site needs its default-site version too.
+        if ($site->handle() !== $defaultSite) {
+            $term->in($defaultSite)->data($values)->slug($slug);
+        }
+
+        $localized->data($values)->slug($slug);
+
+        NotSaved::unless($localized->updateLastModified($user)->save());
+
+        return $localized;
+    }
+
+    /**
+     * Mirrors the CP's TermsController::update(). A slug change renames the term.
+     *
+     * @param  array<array-key, mixed>  $changes
+     */
+    public static function updateTerm(User $user, LocalizedTerm $term, array $changes): LocalizedTerm
+    {
+        $term->term()->syncOriginal();
+        $fields = $term->blueprint()->fields();
+        $handles = DataPatch::handles($changes);
+        self::assertKnown($fields, $handles, self::TERM_ATTRIBUTES);
+
+        $current = [...self::values($term), 'slug' => $term->slug()];
+        $patched = self::patch($fields, $current, $changes, $handles);
+        $merged = [...$current, ...AgentForm::toStored($fields, $patched, $current)];
+        self::assertLocalizable($term, $fields, Arr::only($merged, $handles), $current);
+        self::assertReadOnlyUnchanged($fields, Arr::only($merged, $handles), $current, []);
+        $preProcessed = self::preProcess($fields, $merged);
+        $taxonomy = $term->taxonomyHandle();
+        $site = $term->locale();
+
+        self::validate($fields, $merged, $patched, fn () => $preProcessed->validator()
+            ->withRules(['title' => 'required', 'slug' => ['required', new Slug, new UniqueTermValue(taxonomy: $taxonomy, except: $term->id(), site: $site)]])
+            ->withReplacements(['id' => $term->id(), 'taxonomy' => $taxonomy, 'site' => $site])
+            ->validate());
+
+        $values = self::written($fields, $preProcessed, $merged, $current, $handles);
+
+        if ($values->has('slug')) {
+            $term->slug($values->pull('slug'));
+        }
+
+        $term->merge($values->all());
+
+        NotSaved::unless($term->updateLastModified($user)->save());
+
+        return $term;
+    }
+
+    /**
      * The stored field values an entry or global set resolves to: a localization's
      * own values over those of its origins. Like the CP's edit form, without the
      * values a collection injects.
      *
      * @return array<array-key, mixed>
      */
-    public static function values(Entry|Variables $item): array
+    public static function values(Entry|Variables|LocalizedTerm $item): array
     {
         $values = [];
 
-        for ($target = $item; $target !== null; $target = $target->origin()) {
+        // A term's origin() is its default-site version, also for the default site itself.
+        for ($target = $item; ; $target = $target->origin()) {
             $data = $target->data()->all();
             // A localization's null overrides its origin's value; a root's null is just empty.
             $values = [...($target->isRoot() ? Arr::removeNullValues($data) : $data), ...$values];
-        }
 
-        return Arr::removeNullValues($values);
+            if ($target->isRoot()) {
+                return Arr::removeNullValues($values);
+            }
+        }
     }
 
     /**
@@ -219,13 +318,13 @@ final class ContentWriter
      * @param  array<array-key, mixed>  $new
      * @param  array<array-key, mixed>  $old
      */
-    private static function assertLocalizable(Entry|Variables $item, Fields $fields, array $new, array $old): void
+    private static function assertLocalizable(Entry|Variables|LocalizedTerm $item, Fields $fields, array $new, array $old): void
     {
-        $origin = $item->origin();
-
-        if ($origin === null) {
+        if ($item->isRoot()) {
             return;
         }
+
+        $origin = $item->origin();
 
         $errors = [];
 
@@ -236,7 +335,7 @@ final class ContentWriter
             if ($handle !== 'slug' && $field !== null && ! $field->isLocalizable() && $value !== ($old[$handle] ?? null)) {
                 $errors[$handle] = [$origin instanceof Entry
                     ? "Not localizable. Change it on the origin entry [{$origin->id()}]."
-                    : "Not localizable. Change it in the origin site [{$origin->locale()}]."];
+                    : "Not localizable. Change it in the site [{$origin->locale()}]."];
             }
         }
 
@@ -357,13 +456,14 @@ final class ContentWriter
 
     /**
      * @param  list<int|string>  $handles
+     * @param  list<string>  $attributes  handles Statamic keeps next to the fields
      */
-    private static function assertKnown(Fields $fields, array $handles, bool $entry): void
+    private static function assertKnown(Fields $fields, array $handles, array $attributes): void
     {
         $errors = [];
 
         foreach ($handles as $handle) {
-            if ($entry && in_array($handle, self::ENTRY_ATTRIBUTES, true)) {
+            if (in_array($handle, $attributes, true)) {
                 $errors[$handle] = [$handle === 'published'
                     ? 'Not writable through data. Use publish_entry or unpublish_entry.'
                     : 'Statamic manages this attribute; it cannot be written.'];

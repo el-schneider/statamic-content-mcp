@@ -6,18 +6,21 @@ namespace ElSchneider\ContentMcp\Server;
 
 use Composer\InstalledVersions;
 use ElSchneider\ContentMcp\Tools\CreateEntry;
+use ElSchneider\ContentMcp\Tools\CreateTerm;
 use ElSchneider\ContentMcp\Tools\FindAssets;
 use ElSchneider\ContentMcp\Tools\FindEntries;
 use ElSchneider\ContentMcp\Tools\GetBlueprint;
 use ElSchneider\ContentMcp\Tools\GetEntry;
 use ElSchneider\ContentMcp\Tools\GetGlobal;
 use ElSchneider\ContentMcp\Tools\GetOverview;
+use ElSchneider\ContentMcp\Tools\GetTerm;
 use ElSchneider\ContentMcp\Tools\ListTerms;
 use ElSchneider\ContentMcp\Tools\LocalizeEntry;
 use ElSchneider\ContentMcp\Tools\PublishEntry;
 use ElSchneider\ContentMcp\Tools\UnpublishEntry;
 use ElSchneider\ContentMcp\Tools\UpdateEntry;
 use ElSchneider\ContentMcp\Tools\UpdateGlobal;
+use ElSchneider\ContentMcp\Tools\UpdateTerm;
 use Laravel\Mcp\Server;
 
 final class ContentMcpServer extends Server
@@ -42,12 +45,15 @@ final class ContentMcpServer extends Server
         GetGlobal::class,
         FindAssets::class,
         ListTerms::class,
+        GetTerm::class,
         CreateEntry::class,
         UpdateEntry::class,
         PublishEntry::class,
         UnpublishEntry::class,
         UpdateGlobal::class,
         LocalizeEntry::class,
+        CreateTerm::class,
+        UpdateTerm::class,
     ];
 
     protected function boot(): void

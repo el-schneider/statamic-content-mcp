@@ -25,7 +25,7 @@ arch('no debugging leftovers')
  * tool must not ship without saying which kind it is.
  */
 it('annotates every registered tool as read-only or lists it as a write tool', function () {
-    $writeTools = ['create_entry', 'update_entry', 'publish_entry', 'unpublish_entry', 'update_global', 'localize_entry'];
+    $writeTools = ['create_entry', 'update_entry', 'publish_entry', 'unpublish_entry', 'update_global', 'localize_entry', 'create_term', 'update_term'];
 
     /** @var list<class-string<Tool>> $classes */
     $classes = (new ReflectionClass(ContentMcpServer::class))->getProperty('tools')->getDefaultValue();
@@ -42,5 +42,5 @@ it('annotates every registered tool as read-only or lists it as a write tool', f
         }
     }
 
-    expect(count($classes))->toBe(13);
+    expect(count($classes))->toBe(16);
 });

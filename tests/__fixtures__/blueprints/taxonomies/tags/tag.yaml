@@ -1,0 +1,16 @@
+title: Tag
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              localizable: true
+          - handle: description
+            field:
+              type: textarea
+              localizable: true
+          - handle: color
+            field:
+              type: text

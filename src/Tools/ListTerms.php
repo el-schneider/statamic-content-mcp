@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ElSchneider\ContentMcp\Tools;
 
-use ElSchneider\ContentMcp\Content\NotFound;
+use ElSchneider\ContentMcp\Content\Find;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Request;
@@ -13,9 +13,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
-use Statamic\Facades\Taxonomy;
 use Statamic\Taxonomies\LocalizedTerm;
-use Statamic\Taxonomies\Taxonomy as TaxonomyModel;
 
 #[Title('List taxonomy terms')]
 #[Description('Lists the terms of a taxonomy (e.g. tags or categories) with slug and title, ordered by title. `query` matches title or slug. `has_more` tells whether another page follows. Terms fields store term slugs.')]
@@ -45,14 +43,7 @@ final class ListTerms extends ContentTool
             'offset' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $handle = $request->string('taxonomy')->toString();
-        $taxonomy = Taxonomy::findByHandle($handle);
-
-        if (! $taxonomy instanceof TaxonomyModel || Gate::denies('view', $taxonomy)) {
-            throw new NotFound("Taxonomy [{$handle}] not found.");
-        }
-
-        $query = $taxonomy->queryTerms()->where('site', $this->site($request)->handle())->orderBy('title');
+        $query = Find::taxonomy($request->string('taxonomy')->toString())->queryTerms()->where('site', $this->site($request)->handle())->orderBy('title');
 
         if ($request->filled('query')) {
             $like = '%'.addcslashes($request->string('query')->toString(), '%_\\').'%';
