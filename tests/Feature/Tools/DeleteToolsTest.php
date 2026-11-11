@@ -66,7 +66,7 @@ it('moves child pages up to the parent, like the CP, and keeps the root page', f
     $about = entry('pages', ['title' => 'About']);
     $team = entry('pages', ['title' => 'Team']);
     $tree = Collection::findByHandle('pages')->structure()->in('default');
-    $tree->append($home)->append($about)->appendTo($about->id(), $team)->save();
+    $tree->tree([['entry' => $home->id()], ['entry' => $about->id(), 'children' => [['entry' => $team->id()]]]])->save();
 
     tool($this->editor, DeleteEntry::class, ['id' => $home->id()])->assertHasErrors(['root page of a page tree cannot be deleted']);
     tool($this->editor, DeleteEntry::class, ['id' => $about->id()])->assertHasNoErrors();
