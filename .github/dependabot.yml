@@ -1,22 +1,48 @@
 version: 2
 updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+      time: '00:30'
+      timezone: Europe/Berlin
+    cooldown:
+      default-days: 7
+      include:
+        - '*'
+
   - package-ecosystem: composer
     directory: /
     schedule:
-      interval: weekly
-    labels:
-      - dependencies
+      interval: daily
+      time: '01:30'
+      timezone: Europe/Berlin
+    # This package is a library: widen constraints to keep both the old and new
+    # version installable, instead of forcing consumers onto the new one.
+    versioning-strategy: widen
+    cooldown:
+      default-days: 7
+      semver-patch-days: 3
+      include:
+        - '*'
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-    labels:
-      - dependencies
-
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-    labels:
-      - dependencies
+      interval: daily
+      time: '02:00'
+      timezone: Europe/Berlin
+    versioning-strategy: increase-if-necessary
+    cooldown:
+      default-days: 7
+      semver-patch-days: 7
+      include:
+        - '*'
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
