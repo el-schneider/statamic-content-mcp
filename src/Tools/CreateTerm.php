@@ -49,7 +49,8 @@ final class CreateTerm extends ContentTool
         $taxonomy = Find::taxonomy($request->string('taxonomy')->toString());
         $site = $this->site($request);
 
-        if (Gate::denies('create', [TermContract::class, $taxonomy, $site])) {
+        // The CP checks `create` for the form and `store` for the save (TermsController::create()/store()).
+        if (Gate::denies('create', [TermContract::class, $taxonomy, $site]) || Gate::denies('store', [TermContract::class, $taxonomy, $site])) {
             return Response::error("You may not create terms in [{$taxonomy->handle()}].");
         }
 

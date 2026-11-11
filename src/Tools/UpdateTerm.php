@@ -46,7 +46,8 @@ final class UpdateTerm extends ContentTool
 
         $term = Find::term($request->string('taxonomy')->toString(), $request->string('slug')->toString(), $this->site($request));
 
-        if (Gate::denies('edit', $term)) {
+        // The ability the CP's TermsController::update() authorizes.
+        if (Gate::denies('update', $term)) {
             return Response::error('You may not edit this term.');
         }
 

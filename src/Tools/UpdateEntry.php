@@ -50,7 +50,8 @@ final class UpdateEntry extends ContentTool
 
         $entry = Find::entry($request->string('id')->toString());
 
-        if (Gate::denies('edit', $entry)) {
+        // The ability the CP's EntriesController::update() authorizes.
+        if (Gate::denies('update', $entry)) {
             return Response::error('You may not edit this entry.');
         }
 

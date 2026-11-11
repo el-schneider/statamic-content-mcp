@@ -55,7 +55,8 @@ final class CreateEntry extends ContentTool
         $collection = Find::collection($request->string('collection')->toString());
         $site = $this->site($request);
 
-        if (Gate::denies('create', [EntryContract::class, $collection, $site])) {
+        // The CP checks `create` for the form and `store` for the save (EntriesController::create()/store()).
+        if (Gate::denies('create', [EntryContract::class, $collection, $site]) || Gate::denies('store', [EntryContract::class, $collection, $site])) {
             return Response::error("You may not create entries in [{$collection->handle()}].");
         }
 
