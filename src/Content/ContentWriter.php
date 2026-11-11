@@ -100,10 +100,7 @@ final class ContentWriter
         $fields = $blueprint->fields();
         $handles = DataPatch::handles($changes);
 
-        self::assertWritable($fields, $handles, [
-            ...self::lockedHandles($collection, $blueprint),
-            ...(self::authorLocked($collection, $blueprint) ? ['author'] : []),
-        ]);
+        self::assertWritable($fields, $handles, self::lockedHandles($collection, $blueprint));
 
         // The values the CP edit form starts from.
         $current = [...Arr::removeNullValues($entry->data()->all()), 'slug' => $entry->slug()];
@@ -240,13 +237,16 @@ final class ContentWriter
     }
 
     /**
-     * Fields the CP never takes from submitted values.
+     * Fields the CP never takes from this editor's submitted values.
      *
      * @return list<string>
      */
     private static function lockedHandles(Collection $collection, Blueprint $blueprint): array
     {
-        return $collection->autoGeneratesTitles() && $blueprint->hasField('title') ? ['title'] : [];
+        return [
+            ...($collection->autoGeneratesTitles() ? ['title'] : []),
+            ...(self::authorLocked($collection, $blueprint) ? ['author'] : []),
+        ];
     }
 
     private static function authorLocked(Collection $collection, Blueprint $blueprint): bool
