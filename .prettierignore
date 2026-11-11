@@ -1,9 +1,0 @@
-composer.lock
-composer.json
-package-lock.json
-package.json
-/resources/dist
-/vendor
-/node_modules
-/public
-CHANGELOG.md

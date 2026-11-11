@@ -1,5 +1,0 @@
-title: Blog
-date: true
-route: /blog/{slug}
-taxonomies:
-  - tags
