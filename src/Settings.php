@@ -101,7 +101,7 @@ final class Settings
             ['handle' => 'deletes', 'field' => [
                 'type' => 'toggle',
                 'display' => __('Allow deleting'),
-                'instructions' => __('Lets the assistant delete entries, terms and assets for everyone who may delete them themselves. Content the assistant reads can contain text that tries to steer it, and a deletion cannot be undone.'),
+                'instructions' => __('Lets the assistant delete entries, terms and assets wherever the account it works for may delete them. Content the assistant reads can contain text that tries to steer it, and a deletion cannot be undone.'),
                 'default' => $defaults['deletes'],
             ]],
         ]]]]]];
