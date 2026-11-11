@@ -458,8 +458,10 @@ final class Trees
             $page = $tree->find($id);
             $parent = $page?->parent();
 
+            // Tree::pages() already leaves out the root page. The CP's controller slices once
+            // more, which skips the first ordinary page; this check does not copy that.
             $siblings = (! $parent || $parent->isRoot())
-                ? $tree->pages()->all()->slice(1)
+                ? $tree->pages()->all()
                 : $parent->pages()->all();
 
             $uris = $siblings->reject(fn ($sibling): bool => $sibling->reference() === $id)->map->uri();

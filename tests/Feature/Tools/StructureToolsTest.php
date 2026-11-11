@@ -267,6 +267,23 @@ it('respects the max depth, the root page and unique urls of the collection tree
         ->and($duplicate['parent'][0])->toContain('/about/team');
 });
 
+it('refuses a move to the top level that duplicates the URL of the first page there', function (bool $root) {
+    // Regression: the sibling list dropped its first page twice when the tree had a root.
+    $pages = $root ? pages('Home', 'Twin', 'About', 'Team') : pages('Twin', 'About', 'Team');
+    Collection::findByHandle('pages')->structureContents(['root' => $root])->save();
+    $twin = $pages['Twin']->slug('team');
+    $twin->save();
+    $tree = Collection::findByHandle('pages')->structure()->in('default');
+    $tree->move($pages['Team']->id(), $pages['About']->id());
+    $tree->save();
+    $before = pageTree();
+
+    $errors = structureErrors(tool($this->editor, MoveEntry::class, ['id' => $pages['Team']->id(), 'after' => $pages['About']->id()]));
+
+    expect($errors['parent'][0] ?? null)->toContain('/team')
+        ->and(pageTree())->toBe($before);
+})->with(['without root' => [false], 'with root' => [true]]);
+
 it('reorders a flat collection', function () {
     Collection::findByHandle('pages')->structureContents(['max_depth' => 1])->save();
     ['One' => $one, 'Two' => $two, 'Three' => $three] = pages('One', 'Two', 'Three');
