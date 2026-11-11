@@ -6,7 +6,7 @@ All notable changes to `statamic-content-mcp` will be documented in this file.
 
 ### Added
 
-- Tools → Content MCP in the Control Panel. **Connect** shows editors the server URL with a copy button, the steps, what the assistant may do, and their own connections with Disconnect. **Connections** lists every user's connections (app, address, user, first connected, last token issued, state) for users with the new permission **See and disconnect every user's AI app connections**, including those of deleted users, and disconnects any of them. **Settings** edits the settings below.
+- Tools → Content MCP in the Control Panel. **Connect** shows editors the server URL with a copy button, the steps, what the assistant may do, and their own connections with Disconnect. **Connections** lists every user's connections (app, address, user, first connected, access last renewed, state) for users with the new permission **See and disconnect every user's AI app connections**, including those of deleted users, and disconnects any of them. **Settings** edits the settings below.
 - Settings in the Control Panel, stored as Statamic addon settings: editorial guidelines, allowed apps and allow deleting. The config file holds the defaults; only fields changed from them are stored, and those win. Values are taken literally, also text that looks like Antlers. An empty list of allowed apps lets no app register.
 - A frontend build (Vite+, TypeScript, Statamic's Vue components), committed in `resources/dist`.
 

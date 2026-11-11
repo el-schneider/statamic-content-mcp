@@ -19,7 +19,7 @@ defineProps<{ connections: Connection[]; tabs: Tab[] }>();
             class="mb-4"
             :text="
                 __(
-                    'Every app connected for a user of this site. Passport records when a token is issued, not each use: the last token issued shows when the app last renewed its access.',
+                    'Every app connected for an account on this site. “Access last renewed” shows when the app last renewed its access, which it does about once an hour while it is in use. Single uses are not recorded.',
                 )
             "
         />

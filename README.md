@@ -66,10 +66,10 @@ Editors without the permission see a "No access" page instead of the consent scr
 Everything lives under **Tools → Content MCP**, in up to three pages. Each shows only to those who may open it, and the area itself needs **Use AI assistants through Content MCP**.
 
 - **Connect**: the URL and the user's own connections. Needs **Use AI assistants through Content MCP**.
-- **Connections**: every user's connections, with the app, its address, the user, when it first connected, when it last got a token, and whether it is active, idle or expired. Disconnect works for any of them, also for users who were deleted since. Needs **See and disconnect every user's AI app connections**.
+- **Connections**: every user's connections, with the app, its address, the user, when it first connected, when it last renewed its access, and whether it is active, idle or expired. Disconnect works for any of them, also for users who were deleted since. Needs **See and disconnect every user's AI app connections**.
 - **Settings**: editorial guidelines, allowed apps and whether the assistant may delete. Needs Statamic's permission **Content MCP settings** (in the Addons group of the role editor). The same form is under Addons → Content MCP → Settings.
 
-Passport records when it issues a token, not each request, so "last token issued" tells you when the app last renewed its access, which happens about once an hour while it is in use.
+"Access last renewed" shows when the app last renewed its access, which it does about once an hour while it is in use. Single requests are not recorded.
 
 A typical setup: editors get **Use AI assistants through Content MCP** next to their content permissions; the person who runs the site gets all three.
 

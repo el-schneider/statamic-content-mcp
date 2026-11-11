@@ -27,7 +27,11 @@ defineProps<{
                 read-only
                 copyable
             />
-            <ol class="mt-4 list-decimal space-y-1 ps-5">
+            <!-- Inline: the CP's stylesheet only has the utility classes Statamic uses itself. -->
+            <ol
+                class="mt-4 space-y-1"
+                style="list-style: decimal; padding-inline-start: 1.25rem"
+            >
                 <li
                     v-text="
                         __(

@@ -62,3 +62,15 @@ function save() {
         </PublishContainer>
     </div>
 </template>
+
+<style scoped>
+/* Long guidelines would push the other settings far below the page. */
+:deep(.markdown-fieldtype .CodeMirror-scroll),
+:deep(.markdown-fieldtype .markdown-preview) {
+    max-height: 24rem;
+}
+
+:deep(.markdown-fieldtype .markdown-preview) {
+    overflow-y: auto;
+}
+</style>

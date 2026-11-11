@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { config, dateFormatter } from '@statamic/cms/api';
 import { router } from '@statamic/cms/inertia';
 import {
     Badge,
@@ -18,7 +19,7 @@ const columns = computed(() => [
     { label: __('App'), field: 'app' },
     ...(props.showUser ? [{ label: __('User'), field: 'user' }] : []),
     { label: __('First connected'), field: 'first_connected_at' },
-    { label: __('Last token issued'), field: 'last_token_issued_at' },
+    { label: __('Access last renewed'), field: 'last_token_issued_at' },
     { label: __('Status'), field: 'state' },
 ]);
 
@@ -27,6 +28,13 @@ const states = {
     idle: { text: __('Idle, renews on next use'), color: 'default' },
     expired: { text: __('Expired'), color: 'amber' },
 } as const;
+
+// Statamic's formatter follows the browser's language; the CP's is the user's choice.
+function formatDate(value: string, options?: { relative: boolean }): string {
+    return dateFormatter.withLocale(config.get('locale', null), () =>
+        dateFormatter.format(value, options),
+    );
+}
 
 const disconnecting = ref<Connection | null>(null);
 const busy = ref(false);
@@ -73,10 +81,13 @@ function disconnect() {
             />
         </template>
         <template #cell-first_connected_at="{ value }">
-            <date-time :of="value" />
+            <span v-text="formatDate(value)" />
         </template>
         <template #cell-last_token_issued_at="{ value }">
-            <date-time :of="value" :options="{ relative: true }" />
+            <span
+                :title="formatDate(value)"
+                v-text="formatDate(value, { relative: true })"
+            />
         </template>
         <template #cell-state="{ row }">
             <Badge
