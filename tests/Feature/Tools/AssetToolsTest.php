@@ -12,6 +12,7 @@ use GuzzleHttp\Psr7\Response as HttpResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Statamic\Events\AssetSaving;
 use Statamic\Facades\Asset;
 use Statamic\Facades\AssetContainer;
@@ -140,6 +141,39 @@ it('refuses URLs without a public http(s) target', function (string $url, string
     'credentials' => ['https://user:pass@example.com/x.png', 'Only http and https'],
     'unresolvable' => ['https://nowhere.test/x.png', 'could not be resolved'],
 ]);
+
+it('refuses hosts that curl would read as another address than the one it is pinned to', function () {
+    // Regression: curl turns numeric hosts such as 2130706433 into 127.0.0.1 and ignores
+    // the CURLOPT_RESOLVE pin for them. Real curl here, no MockHandler.
+    $server = @stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
+
+    if ($server === false) {
+        test()->markTestSkipped("No local socket: {$error}");
+    }
+
+    stream_set_blocking($server, false);
+    $port = (int) Str::afterLast((string) stream_socket_get_name($server, false), ':');
+    // Pretends every name is public, so only the host check stands between curl and the listener.
+    $remote = new RemoteFile(fn (string $host): array => ['93.184.216.34']);
+
+    foreach (['2130706433', '0x7f000001', '0177.0.0.1', '127.1', '0x7f.0.0.1', '017700000001', 'localhost.', 'localhost..', 'example.com.', '127.0.0.1.nip.io.', 'ex%61mple.com', 'bücher.example'] as $host) {
+        try {
+            $remote->download("http://{$host}:{$port}/x", 1000);
+            $message = 'downloaded';
+        } catch (Illuminate\Validation\ValidationException $e) {
+            $message = $e->errors()['url'][0];
+        }
+
+        expect($message)->toContain('is not a domain name or a standard IP address', $host)
+            ->and(@stream_socket_accept($server, 0))->toBeFalse("{$host} reached the local listener");
+    }
+
+    // The listener does see a plain connection, so the assertions above can fail.
+    $curl = curl_init("http://127.0.0.1:{$port}/");
+    curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT_MS => 300]);
+    curl_exec($curl);
+    expect(@stream_socket_accept($server, 1))->not->toBeFalse();
+});
 
 it('checks every redirect hop again and stops at a private one', function () {
     $mock = fakeNetwork([

@@ -217,7 +217,17 @@ final class RemoteFile
             throw self::invalid('Only http and https URLs without credentials can be uploaded.');
         }
 
-        $ips = filter_var($host, FILTER_VALIDATE_IP) !== false ? [$host] : ($this->resolve)($host);
+        $literal = filter_var($host, FILTER_VALIDATE_IP) !== false;
+
+        // curl reads numeric spellings such as 2130706433, 0x7f.1 or 0177.0.0.1 as IP
+        // addresses and then ignores the pin, and connects to something else for a trailing
+        // dot or a name it converts (IDN). Only standard IP literals and plain ASCII domain
+        // names, whose last label starts with a letter, reach curl.
+        if (! $literal && preg_match('/^([a-z0-9_]([a-z0-9_-]*[a-z0-9_])?\.)*[a-z]([a-z0-9-]*[a-z0-9])?$/', $host) !== 1) {
+            throw self::invalid("The host [{$host}] is not a domain name or a standard IP address.");
+        }
+
+        $ips = $literal ? [$host] : ($this->resolve)($host);
 
         if ($ips === []) {
             throw self::invalid("The host [{$host}] could not be resolved.");
