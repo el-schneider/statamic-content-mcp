@@ -1,13 +1,13 @@
 {
     "name": "el-schneider/statamic-content-mcp",
-    "description": "Connect Claude to a Statamic site so editors can read and draft content with their own Control Panel permissions.",
+    "description": "Lets editors work on a Statamic site from an AI assistant over MCP, signed in with their own Control Panel account and permissions.",
     "license": "MIT",
     "keywords": [
         "statamic",
         "statamic-addon",
         "mcp",
         "model-context-protocol",
-        "claude",
+        "ai-assistant",
         "oauth",
         "laravel"
     ],
@@ -54,7 +54,7 @@
     "extra": {
         "statamic": {
             "name": "Content MCP",
-            "description": "Connect Claude to your site so editors can read and draft content with their own permissions."
+            "description": "Let editors read and draft content from an AI assistant, with their own permissions."
         },
         "laravel": {
             "providers": [

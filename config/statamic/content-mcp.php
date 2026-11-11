@@ -9,8 +9,8 @@ return [
     | Route
     |--------------------------------------------------------------------------
     |
-    | The path of the MCP endpoint. This is the URL editors paste into Claude
-    | as a custom connector, e.g. https://example.com/mcp/content.
+    | The path of the MCP endpoint. This is the URL editors add to their AI
+    | assistant as a remote MCP server, e.g. https://example.com/mcp/content.
     |
     */
 
@@ -22,8 +22,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Your site's editorial guidelines: voice, tone, audience, conventions.
-    | Claude receives them with every session and in the `get_overview` tool.
-    | Plain text or Markdown. Leave null to send none.
+    | The assistant receives them with every session and in `get_overview`.
+    | Plain text or Markdown. Leave null to send none. A value saved in the
+    | Control Panel (Tools → Content MCP → Settings) takes precedence.
     |
     */
 
@@ -36,7 +37,8 @@ return [
     |
     | The domains OAuth clients may send editors back to after they approve a
     | connection. Only apps on these domains can register as a client. Add
-    | 'http://localhost' to also allow local clients such as Claude Code.
+    | 'http://localhost' to also allow desktop and command-line tools on the
+    | editor's own machine. A value saved in the Control Panel takes precedence.
     |
     | Ignored when your app has its own config/mcp.php: then its
     | `redirect_domains` setting is used.
@@ -66,9 +68,10 @@ return [
     |--------------------------------------------------------------------------
     |
     | Offer `delete_entry`, `delete_term` and `delete_asset`. Off by default:
-    | content Claude reads (a page, an uploaded file) can contain text that
-    | tries to steer it, and deletes cannot be undone. Editors still need the
-    | delete permission on each item.
+    | content the assistant reads (a page, an uploaded file) can contain text
+    | that tries to steer it, and deletes cannot be undone. Editors still need
+    | the delete permission on each item. A value saved in the Control Panel
+    | takes precedence.
     |
     */
 

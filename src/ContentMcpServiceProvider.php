@@ -89,7 +89,7 @@ final class ContentMcpServiceProvider extends AddonServiceProvider
 
     public function bootAddon(): void
     {
-        Permission::extend(fn () => Permission::register(self::PERMISSION)->label('Connect Claude via Content MCP'));
+        Permission::extend(fn () => Permission::register(self::PERMISSION)->label('Use AI assistants through Content MCP'));
     }
 
     /**

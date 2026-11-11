@@ -11,7 +11,7 @@
 <main>
     <h1>{{ __('No access') }}</h1>
     <p>{{ __('The account :user may not connect apps to this site.', ['user' => $user->email()]) }}</p>
-    <p class="muted">{{ __('Ask an administrator for the permission ":permission".', ['permission' => __('Connect Claude via Content MCP')]) }}</p>
+    <p class="muted">{{ __('Ask an administrator for the permission ":permission".', ['permission' => __('Use AI assistants through Content MCP')]) }}</p>
 </main>
 </body>
 </html>
