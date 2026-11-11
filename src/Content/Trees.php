@@ -41,7 +41,8 @@ final class Trees
     {
         $stored = self::byId($tree->tree());
         $nav = $tree->structure();
-        $branches = self::branches(self::nodeFields($tree), $tree, $nodes, $stored, 'tree.');
+        $seen = [];
+        $branches = self::branches(self::nodeFields($tree), $tree, $nodes, $stored, 'tree.', $seen);
         $kept = self::byId($branches);
 
         foreach ($stored as $id => $branch) {
@@ -159,9 +160,10 @@ final class Trees
     /**
      * @param  array<mixed>  $nodes
      * @param  array<string, array<array-key, mixed>>  $stored
+     * @param  array<string, true>  $seen  the ids of the nodes before these in the submitted tree
      * @return list<array<array-key, mixed>>
      */
-    private static function branches(Fields $fields, NavTree $tree, array $nodes, array $stored, string $prefix): array
+    private static function branches(Fields $fields, NavTree $tree, array $nodes, array $stored, string $prefix, array &$seen): array
     {
         $branches = [];
 
@@ -177,7 +179,15 @@ final class Trees
                 throw ValidationException::withMessages([$path.'id' => ["No node with id [{$id}] in this navigation. Leave the id out for new nodes."]]);
             }
 
-            $children = self::branches($fields, $tree, is_array($node['children'] ?? null) ? $node['children'] : [], $stored, $path.'children.');
+            if ($id !== null && isset($seen[$id])) {
+                throw ValidationException::withMessages([$path.'id' => ["The node [{$id}] appears more than once. Leave the id out for new nodes."]]);
+            }
+
+            if ($id !== null) {
+                $seen[$id] = true;
+            }
+
+            $children = self::branches($fields, $tree, is_array($node['children'] ?? null) ? $node['children'] : [], $stored, $path.'children.', $seen);
             $branch = $id !== null && self::hiddenEntry($stored[$id], $tree)
                 ? $stored[$id]
                 : self::branch($fields, $tree, $node, $id === null ? null : $stored[$id], $path);

@@ -144,6 +144,8 @@ it('validates node data, ids, entries, the allowed collections and the max depth
     'unknown data field' => [[['id' => 'n1', 'data' => ['colour' => 'red']]], 'tree.n1.data.colour', 'Unknown field'],
     'nested new node by index' => [[['id' => 'n1', 'children' => [['url' => '/a', 'data' => ['priority' => 'many']]]]], 'tree.n1.children.0.data.priority', 'integer'],
     'unknown id' => [[['id' => 'nope', 'title' => 'X']], 'tree.nope.id', 'No node with id [nope]'],
+    'duplicate id' => [[['id' => 'n1'], ['id' => 'n1']], 'tree.n1.id', 'appears more than once'],
+    'duplicate id nested' => [[['id' => 'n1', 'children' => [['id' => 'n1']]]], 'tree.n1.children.n1.id', 'appears more than once'],
     'link without title or url' => [[['data' => []]], 'tree.0.title', 'needs a title or a url'],
     'missing entry' => [[['entry' => 'missing']], 'tree.0.entry', 'Entry [missing] not found.'],
     'entry of another collection' => [[['entry' => 'POST']], 'tree.0.entry', 'these collections only: pages'],
