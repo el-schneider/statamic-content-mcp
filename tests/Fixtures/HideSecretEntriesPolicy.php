@@ -21,4 +21,9 @@ final class HideSecretEntriesPolicy extends EntryPolicy
     {
         return $entry->slug() !== 'secret' && parent::edit($user, $entry);
     }
+
+    public function delete($user, $entry)
+    {
+        return $entry->slug() !== 'secret' && parent::delete($user, $entry);
+    }
 }

@@ -65,18 +65,41 @@ final class DeleteEntry extends ContentTool
 
     /**
      * Mirrors the CP's DeleteMultisiteEntry action: deleting them is only offered when
-     * the editor may access every site they are in; otherwise they are detached.
+     * the editor may access every site they are in; otherwise they are detached. Unlike
+     * Entry::deleteDescendants(), each one must also pass `delete`, and a veto stops.
      */
     private function handleLocalizations(Entry $entry, string $choice): void
     {
-        $canDelete = $entry->descendants()->every(fn (Entry $localization): bool => Gate::allows('view', $localization->site()));
+        $localizations = $entry->descendants();
+        $inSites = $localizations->every(fn (Entry $localization): bool => Gate::allows('view', $localization->site()));
 
-        if ($choice === '' || ($choice === 'delete' && ! $canDelete)) {
-            throw ValidationException::withMessages(['localizations' => [$canDelete
+        if ($choice === '' || ($choice === 'delete' && ! $inSites)) {
+            throw ValidationException::withMessages(['localizations' => [$inSites
                 ? 'This entry has versions in other sites. Pass "delete" to delete them too or "detach" to keep them as independent entries.'
                 : 'This entry has versions in sites you may not access. Pass "detach" to keep them as independent entries.']]);
         }
 
-        $choice === 'delete' ? $entry->deleteDescendants() : $entry->detachLocalizations();
+        if ($choice === 'detach') {
+            $entry->detachLocalizations();
+
+            return;
+        }
+
+        if ($localizations->contains(fn (Entry $localization): bool => Gate::denies('delete', $localization))) {
+            throw ValidationException::withMessages(['localizations' => ['You may not delete every version of this entry in other sites. Pass "detach" to keep them as independent entries.']]);
+        }
+
+        $this->deleteLocalizations($entry);
+    }
+
+    /**
+     * Deepest first: an entry with localizations cannot be deleted.
+     */
+    private function deleteLocalizations(Entry $entry): void
+    {
+        foreach ($entry->directDescendants() as $localization) {
+            $this->deleteLocalizations($localization);
+            NotSaved::unless($localization->delete(), deletion: true);
+        }
     }
 }

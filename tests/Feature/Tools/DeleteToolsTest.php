@@ -112,6 +112,39 @@ it('needs a choice for an entry localized in other sites, and only detaches wher
         ->and(Entries::find($secondGerman->id()))->toBeNull();
 });
 
+it('deletes localizations only when the editor may delete every one of them, one by one', function () {
+    // Regression: deleteDescendants() deleted localizations without asking the Gate and ignored vetoes.
+    config(['statamic.system.multisite' => true]);
+    Site::setSites([
+        'default' => ['name' => 'English', 'url' => 'http://localhost/', 'locale' => 'en_US'],
+        'de' => ['name' => 'Deutsch', 'url' => 'http://localhost/de/', 'locale' => 'de_DE'],
+        'fr' => ['name' => 'Français', 'url' => 'http://localhost/fr/', 'locale' => 'fr_FR'],
+    ]);
+    Collection::findByHandle('blog')->sites(['default', 'de', 'fr'])->save();
+    Gate::policy(Entry::class, HideSecretEntriesPolicy::class);
+    $editor = editor(['access content mcp', 'access default site', 'access de site', 'access fr site', 'view blog entries', 'delete blog entries'], 'all@example.com');
+    $origin = entry('blog', ['title' => 'Origin']);
+    $french = $origin->makeLocalization('fr')->slug('french');
+    $french->save();
+    $protected = $origin->makeLocalization('de')->slug('secret');
+    $protected->save();
+
+    $denied = tool($editor, DeleteEntry::class, ['id' => $origin->id(), 'localizations' => 'delete'])->errorText();
+
+    expect($denied)->toContain('may not delete')
+        ->and(Entries::find($origin->id()))->not->toBeNull()
+        ->and(Entries::find($french->id()))->not->toBeNull()
+        ->and(Entries::find($protected->id()))->not->toBeNull();
+
+    $protected->slug('deutsch')->save();
+    Event::listen(EntryDeleting::class, fn (EntryDeleting $event) => $event->entry->locale() === 'de' ? false : null);
+
+    tool($editor, DeleteEntry::class, ['id' => $origin->id(), 'localizations' => 'delete'])->assertHasErrors(['The site cancelled this deletion']);
+
+    expect(Entries::find($origin->id()))->not->toBeNull()
+        ->and(Entries::find($protected->id()))->not->toBeNull();
+});
+
 it('deletes terms and assets with the delete permission', function () {
     Term::make('old')->taxonomy('tags')->data(['title' => 'Old'])->save();
     Storage::fake('assets');
