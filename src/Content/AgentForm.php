@@ -75,6 +75,47 @@ final class AgentForm
         return $agent;
     }
 
+    /**
+     * Walks a processed value next to the processed and raw form of what was
+     * stored, and returns the raw original for every part that processing alone
+     * would have changed. Rows and sets are matched by id, objects by key.
+     */
+    public static function keepUnchanged(mixed $processed, mixed $processedOriginal, mixed $original): mixed
+    {
+        if (self::same($processed, $processedOriginal)) {
+            return $original;
+        }
+
+        if (! is_array($processed) || ! is_array($processedOriginal) || ! is_array($original)) {
+            return $processed;
+        }
+
+        if (! array_is_list($processed)) {
+            foreach ($processed as $key => $value) {
+                if (! array_key_exists($key, $processedOriginal)) {
+                    continue;
+                }
+
+                if (array_key_exists($key, $original)) {
+                    $processed[$key] = self::keepUnchanged($value, $processedOriginal[$key], $original[$key]);
+                } elseif (self::same($value, $processedOriginal[$key])) {
+                    // Added by processing alone, e.g. `enabled: true` or a default.
+                    unset($processed[$key]);
+                }
+            }
+
+            return $processed;
+        }
+
+        return array_map(function (mixed $item) use ($processedOriginal, $original): mixed {
+            $id = self::rowId($item);
+            $before = $id === null ? null : collect($processedOriginal)->first(fn (mixed $row): bool => self::rowId($row) === $id);
+            $raw = $id === null ? null : collect($original)->first(fn (mixed $row): bool => self::rowId($row) === $id);
+
+            return $before !== null && $raw !== null ? self::keepUnchanged($item, $before, $raw) : $item;
+        }, $processed);
+    }
+
     private static function valueFromStored(Field $field, mixed $value): mixed
     {
         if (! is_array($value)) {
@@ -377,6 +418,20 @@ final class AgentForm
         }
 
         return true;
+    }
+
+    /**
+     * The id of a replicator set or grid row, or of a Bard set node.
+     */
+    private static function rowId(mixed $row): ?string
+    {
+        if (! is_array($row)) {
+            return null;
+        }
+
+        $id = $row[self::idKey()] ?? (($row['type'] ?? null) === 'set' ? ($row['attrs']['id'] ?? null) : null);
+
+        return is_string($id) ? $id : null;
     }
 
     private static function idKey(): string

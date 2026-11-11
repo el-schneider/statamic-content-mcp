@@ -42,7 +42,7 @@ final class ContentWriter
             $data['author'] = [$user->getAuthIdentifier()];
         }
 
-        $fields = $fields->addValues(AgentForm::toStored($fields, $data, []))->preProcess();
+        $fields = $fields->addValues(self::withNowDefaults($fields, AgentForm::toStored($fields, $data, [])))->preProcess();
 
         $fields->validator()
             ->withRules(Entries::createRules($collection, $site))
@@ -112,15 +112,14 @@ final class ContentWriter
             $current['date'] = mb_substr($entry->date()->setTimezone(config('app.timezone'))->toDateTimeString(), 0, 19);
         }
 
-        $fields = $fields->addValues(self::merge($fields, $current, $changes, $handles))->preProcess();
+        $preProcessed = $fields->addValues(self::withNowDefaults($fields, self::merge($fields, $current, $changes, $handles)))->preProcess();
 
-        $fields->validator()
+        $preProcessed->validator()
             ->withRules(Entries::updateRules($collection, $entry))
             ->withReplacements(['id' => $entry->id(), 'collection' => $collection->handle(), 'site' => $entry->locale()])
             ->validate();
 
-        // Only touched fields are written, so everything else stays exactly as stored.
-        $values = $fields->process()->values()->only($handles);
+        $values = self::written($fields, $preProcessed, $current, $handles);
 
         if ($values->has('slug')) {
             $entry->slug($values->pull('slug'));
@@ -156,10 +155,10 @@ final class ContentWriter
         self::assertWritable($fields, $handles, []);
 
         $current = Arr::removeNullValues($variables->data()->all());
-        $fields = $fields->addValues(self::merge($fields, $current, $changes, $handles))->preProcess();
-        $fields->validate();
+        $preProcessed = $fields->addValues(self::withNowDefaults($fields, self::merge($fields, $current, $changes, $handles)))->preProcess();
+        $preProcessed->validate();
 
-        $variables->merge($fields->process()->values()->only($handles)->all())->save();
+        $variables->merge(self::written($fields, $preProcessed, $current, $handles)->all())->save();
 
         return $variables;
     }
@@ -177,6 +176,44 @@ final class ContentWriter
         $patched = DataPatch::apply(AgentForm::fromStored($fields, Arr::only($current, $handles)), $changes);
 
         return [...$current, ...AgentForm::toStored($fields, $patched, $current)];
+    }
+
+    /**
+     * The processed values of the touched fields. Only these are written, and
+     * within them every part the change left alone is swapped back for its stored
+     * original, because processing normalises it (e.g. adds `enabled: true` to sets).
+     *
+     * @param  array<array-key, mixed>  $current
+     * @param  list<string>  $handles
+     * @return Values<array-key, mixed>
+     */
+    private static function written(Fields $fields, Fields $preProcessed, array $current, array $handles): Values
+    {
+        $before = $fields->addValues(self::withNowDefaults($fields, $current))->preProcess()->process()->values();
+
+        return $preProcessed->process()->values()->only($handles)->map(
+            fn (mixed $value, int|string $handle): mixed => array_key_exists($handle, $current)
+                ? AgentForm::keepUnchanged($value, $before->get($handle), $current[$handle])
+                : $value,
+        );
+    }
+
+    /**
+     * The CP's date picker turns a `now` default into the current time before it
+     * submits; Statamic's date validation rejects the literal "now".
+     *
+     * @param  array<array-key, mixed>  $values
+     * @return array<array-key, mixed>
+     */
+    private static function withNowDefaults(Fields $fields, array $values): array
+    {
+        foreach ($fields->all() as $handle => $field) {
+            if ($field->type() === 'date' && ! isset($values[$handle]) && $field->defaultValue() === 'now') {
+                $values[$handle] = now()->toDateTimeString();
+            }
+        }
+
+        return $values;
     }
 
     /**
