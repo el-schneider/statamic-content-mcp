@@ -139,3 +139,12 @@ it('stores Statamic user ids in string columns after php artisan migrate', funct
         expect(Schema::getColumnType($table, 'user_id'))->toBe('varchar');
     }
 });
+
+it('throttles dynamic client registration', function () {
+    // laravel/mcp leaves /oauth/register unthrottled, and every call writes a client row.
+    foreach (range(1, 60) as $attempt) {
+        $this->postJson('/oauth/register', ['redirect_uris' => [CLAUDE_CALLBACK]])->assertCreated();
+    }
+
+    $this->postJson('/oauth/register', ['redirect_uris' => [CLAUDE_CALLBACK]])->assertTooManyRequests();
+});
