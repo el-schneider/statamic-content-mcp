@@ -21,6 +21,22 @@ abstract class TestCase extends AddonTestCase
     /** @var array{private: string, public: string}|null */
     private static ?array $keys = null;
 
+    /**
+     * A run killed mid-test (e.g. output piped into `head`) leaves its files behind:
+     * RouteCacheTest's cached routes would make every later test boot with them, and
+     * AddonTestCase wipes the fake Stache directory only in tearDown.
+     */
+    protected function setUp(): void
+    {
+        if (file_exists($routes = static::applicationBasePath().'/bootstrap/cache/routes-v7.php')) {
+            unlink($routes);
+        }
+
+        parent::setUp();
+
+        $this->deleteFakeStacheDirectory();
+    }
+
     protected function getPackageProviders($app): array
     {
         return [
