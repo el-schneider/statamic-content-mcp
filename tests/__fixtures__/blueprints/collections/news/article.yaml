@@ -12,3 +12,6 @@ tabs:
             field:
               type: users
               max_items: 1
+          - handle: published
+            field:
+              type: toggle

@@ -6,6 +6,7 @@ namespace ElSchneider\ContentMcp\Tools;
 
 use ElSchneider\ContentMcp\Content\EntryPresenter;
 use ElSchneider\ContentMcp\Content\Find;
+use ElSchneider\ContentMcp\Content\NotSaved;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Request;
@@ -42,10 +43,13 @@ final class UnpublishEntry extends ContentTool
             return Response::error('You may not unpublish this entry.');
         }
 
-        $unpublished = $entry->unpublish(['user' => $this->user()]);
+        // Without revisions, Entry::unpublish() ignores whether its save went through.
+        $unpublished = $entry->revisionsEnabled()
+            ? $entry->unpublish(['user' => $this->user()])
+            : ($entry->published(false)->save() ? $entry : false);
 
         if (! $unpublished instanceof Entry) {
-            return Response::error('The entry could not be unpublished.');
+            throw new NotSaved;
         }
 
         return Response::structured(EntryPresenter::meta($unpublished, withPreview: true));

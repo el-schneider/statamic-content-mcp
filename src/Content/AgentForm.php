@@ -116,6 +116,118 @@ final class AgentForm
         }, $processed);
     }
 
+    /**
+     * Processing rebuilds groups from the blueprint, dropping keys it does not
+     * know, and Field::preProcess() replaces null with the field's default. This
+     * puts back unknown keys the input still has and removes keys the input set
+     * to null. Rows and sets are matched by id.
+     */
+    public static function keepInputKeys(mixed $processed, mixed $input): mixed
+    {
+        if ($input === null) {
+            return null;
+        }
+
+        if (! is_array($processed) || ! is_array($input) || array_is_list($processed) !== array_is_list($input)) {
+            return $processed;
+        }
+
+        if (array_is_list($input)) {
+            return array_map(function (mixed $item) use ($input): mixed {
+                $id = self::rowId($item);
+                $row = $id === null ? null : collect($input)->first(fn (mixed $row): bool => self::rowId($row) === $id);
+
+                return $row === null ? $item : self::keepInputKeys($item, $row);
+            }, $processed);
+        }
+
+        foreach ($input as $key => $value) {
+            if ($value === null) {
+                unset($processed[$key]);
+            } elseif (! array_key_exists($key, $processed)) {
+                $processed[$key] = $value;
+            } else {
+                $processed[$key] = self::keepInputKeys($processed[$key], $value);
+            }
+        }
+
+        return $processed;
+    }
+
+    /**
+     * The paths of read-only fields whose stored value $new changes, at any depth:
+     * in groups, grid rows, replicator sets and Bard sets. $locked lists top-level
+     * handles to treat as read-only too.
+     *
+     * @param  array<array-key, mixed>  $new
+     * @param  array<array-key, mixed>  $old
+     * @param  list<string>  $locked
+     * @return list<string>
+     */
+    public static function readOnlyChanges(Fields $fields, array $new, array $old, array $locked = [], string $prefix = ''): array
+    {
+        $paths = [];
+
+        foreach ($new as $handle => $value) {
+            $field = $fields->get($handle);
+            $original = $old[$handle] ?? null;
+
+            if (! $field instanceof Field || self::same($value, $original)) {
+                continue;
+            }
+
+            if (in_array($field->visibility(), ['read_only', 'computed'], true) || in_array($handle, $locked, true)) {
+                $paths[] = $prefix.$handle;
+
+                continue;
+            }
+
+            if (! is_array($value)) {
+                continue;
+            }
+
+            $fieldtype = $field->fieldtype();
+            $originals = is_array($original) ? $original : [];
+
+            array_push($paths, ...match (true) {
+                $fieldtype instanceof Group => self::readOnlyChanges($fieldtype->fields(), $value, $originals, [], "{$prefix}{$handle}."),
+                $fieldtype instanceof Grid => self::readOnlyRowChanges(fn (): Fields => $fieldtype->fields(), false, $value, $originals, "{$prefix}{$handle}."),
+                $fieldtype instanceof Replicator => self::readOnlyRowChanges($fieldtype->fields(...), $fieldtype instanceof Bard, $value, $originals, "{$prefix}{$handle}."),
+                default => [],
+            });
+        }
+
+        return $paths;
+    }
+
+    /**
+     * @param  callable(string): Fields  $fields
+     * @param  array<array-key, mixed>  $rows
+     * @param  array<array-key, mixed>  $originals
+     * @return list<string>
+     */
+    private static function readOnlyRowChanges(callable $fields, bool $bard, array $rows, array $originals, string $prefix): array
+    {
+        $paths = [];
+
+        foreach ($rows as $index => $row) {
+            $id = self::rowId($row);
+            $original = $id === null ? null : collect($originals)->first(fn (mixed $item): bool => self::rowId($item) === $id);
+            // Bard keeps set values under attrs.values; its text nodes have no fields.
+            $values = $bard ? ($row['attrs']['values'] ?? null) : $row;
+            $originalValues = $bard ? ($original['attrs']['values'] ?? null) : $original;
+
+            if (! is_array($values)) {
+                continue;
+            }
+
+            $type = is_string($values['type'] ?? null) ? $values['type'] : '';
+            array_push($paths, ...self::readOnlyChanges($fields($type), $values, is_array($originalValues) ? $originalValues : [], [], $prefix.($id ?? $index).'.'));
+        }
+
+        return $paths;
+    }
+
     private static function valueFromStored(Field $field, mixed $value): mixed
     {
         if (! is_array($value)) {
@@ -145,6 +257,10 @@ final class AgentForm
     {
         if ($original !== null && self::same(self::valueFromStored($field, $original), $value)) {
             return $original;
+        }
+
+        if ($value === null) {
+            return null;
         }
 
         $fieldtype = $field->fieldtype();

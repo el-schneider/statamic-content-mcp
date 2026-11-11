@@ -6,6 +6,7 @@ namespace ElSchneider\ContentMcp\Tools;
 
 use ElSchneider\ContentMcp\Content\EntryPresenter;
 use ElSchneider\ContentMcp\Content\Find;
+use ElSchneider\ContentMcp\Content\NotSaved;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Request;
@@ -45,7 +46,7 @@ final class PublishEntry extends ContentTool
         $published = $entry->publish(['user' => $this->user()]);
 
         if (! $published instanceof Entry) {
-            return Response::error('The entry could not be published.');
+            throw new NotSaved;
         }
 
         return Response::structured(EntryPresenter::meta($published, withPreview: false));

@@ -1,0 +1,8 @@
+title: Note
+tabs:
+  main:
+    sections:
+      - fields:
+          - handle: body
+            field:
+              type: text

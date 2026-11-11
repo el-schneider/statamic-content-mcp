@@ -22,6 +22,10 @@ tabs:
                             type: text
                             validate:
                               - required
+                        - handle: badge
+                          field:
+                            type: text
+                            visibility: read_only
                         - handle: image
                           field:
                             type: assets
@@ -43,3 +47,11 @@ tabs:
                     options:
                       light: Light
                       dark: Dark
+                - handle: accent
+                  field:
+                    type: text
+                    default: blue
+                - handle: owner
+                  field:
+                    type: text
+                    visibility: read_only

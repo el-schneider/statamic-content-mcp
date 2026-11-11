@@ -63,7 +63,8 @@ final class CreateEntry extends ContentTool
 
         /** @var array<string, mixed> $data */
         $data = [...$request->array('data'), ...array_filter($request->only(['slug', 'date']))];
-        $parent = $request->filled('parent') ? $request->string('parent')->toString() : null;
+        // A parent the editor may not view is reported like a missing one.
+        $parent = $request->filled('parent') ? Find::entry($request->string('parent')->toString())->id() : null;
 
         $entry = ContentWriter::createEntry($this->user(), $collection, $blueprint, $site, $data, $parent);
 

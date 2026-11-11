@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ElSchneider\ContentMcp\Tools;
 
 use ElSchneider\ContentMcp\Content\NotFound;
+use ElSchneider\ContentMcp\Content\NotSaved;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request;
@@ -25,7 +26,7 @@ abstract class ContentTool extends Tool
     {
         try {
             return $this->respond($request);
-        } catch (NotFound $e) {
+        } catch (NotFound|NotSaved $e) {
             return Response::error($e->getMessage());
         } catch (ValidationException $e) {
             // laravel/mcp would flatten the messages and drop the field names.

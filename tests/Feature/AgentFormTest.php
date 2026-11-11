@@ -161,7 +161,22 @@ it('patches one set by id with a dot path and leaves its siblings alone', functi
     expect(storedOnDisk($entry, 'page_builder'))->toBe([
         ['id' => 's1', 'type' => 'hero', 'heading' => 'One'],
         ['id' => 's2', 'type' => 'hero', 'heading' => 'Second'],
-    ])->and(storedOnDisk($entry, 'settings'))->toBe(['theme' => 'dark']);
+        // A group the entry never had gets its defaults, as when the CP saves it.
+    ])->and(storedOnDisk($entry, 'settings'))->toBe(['theme' => 'dark', 'accent' => 'blue']);
+});
+
+it('keeps stored group keys the blueprint does not know when patching a sibling', function () {
+    // Regression: Group::process() rebuilds the group from its configured fields and dropped the rest.
+    $entry = entry('pages', ['title' => 'T', 'settings' => ['theme' => 'light', 'legacy_note' => 'Keep']]);
+
+    update($entry, ['settings.theme' => 'dark']);
+
+    expect(storedOnDisk($entry, 'settings'))->toBe(['theme' => 'dark', 'legacy_note' => 'Keep']);
+
+    // Replacing the whole group is how a client removes such keys.
+    update($entry, ['settings' => ['theme' => 'light']]);
+
+    expect(storedOnDisk($entry, 'settings'))->toBe(['theme' => 'light']);
 });
 
 it('patches a Bard set by id and rejects paths to sets that do not exist', function () {

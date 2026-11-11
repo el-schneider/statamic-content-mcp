@@ -8,6 +8,12 @@ tabs:
               type: text
               validate:
                 - required
+          - handle: slug
+            field:
+              type: slug
+              validate:
+                - required
+                - 'new \Statamic\Rules\UniqueEntryValue({collection}, {id}, {site})'
           - handle: intro
             field:
               type: bard
@@ -29,6 +35,10 @@ tabs:
                         - handle: cite
                           field:
                             type: text
+                        - handle: source_id
+                          field:
+                            type: text
+                            visibility: read_only
           - handle: tags
             field:
               type: terms
@@ -44,3 +54,7 @@ tabs:
             field:
               type: text
               visibility: read_only
+          - handle: layout
+            field:
+              type: text
+              default: standard

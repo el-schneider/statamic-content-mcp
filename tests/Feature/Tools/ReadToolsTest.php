@@ -51,7 +51,7 @@ it('describes a blueprint with agent formats, sets, hints and read-only fields',
 
     expect($fields['intro'])->toMatchArray(['type' => 'bard', 'format' => 'html', 'instructions' => 'One short paragraph.'])
         ->and($fields['content']['format'])->toBe('blocks')
-        ->and(collect($fields['content']['sets']['quote']['fields'])->pluck('handle')->all())->toBe(['quote', 'cite'])
+        ->and(collect($fields['content']['sets']['quote']['fields'])->pluck('handle')->all())->toBe(['quote', 'cite', 'source_id'])
         ->and($fields['content']['sets']['quote']['fields'][0]['required'])->toBeTrue()
         ->and($fields['tags'])->toMatchArray(['taxonomies' => ['tags'], 'value' => 'List of term slugs.'])
         ->and($fields['rating']['validate'])->toBe(['min:1', 'max:5'])
@@ -68,7 +68,7 @@ it('describes replicator, group and global blueprints recursively', function () 
 
     expect(array_keys($page['page_builder']['sets']))->toBe(['hero', 'rich_text'])
         ->and($page['page_builder']['sets']['rich_text']['fields'][0])->toMatchArray(['handle' => 'text', 'format' => 'html'])
-        ->and($page['page_builder']['sets']['hero']['fields'][1])->toMatchArray(['container' => 'assets', 'max_files' => 1, 'value' => 'One asset path, relative to the container.'])
+        ->and($page['page_builder']['sets']['hero']['fields'][2])->toMatchArray(['container' => 'assets', 'max_files' => 1, 'value' => 'One asset path, relative to the container.'])
         ->and($page['settings']['fields'][0]['options'])->toBe(['light' => 'Light', 'dark' => 'Dark'])
         ->and(collect($footer['links']['fields'])->pluck('handle')->all())->toBe(['label', 'url']);
 });
